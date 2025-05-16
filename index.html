@@ -1,1 +1,253 @@
-code
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Crepe Management System mit Firebase</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+<style>
+  /* Deine bisherigen Styles hier rein */
+  body { font-family: 'Poppins', sans-serif; background-color: #fff5f7; min-height: 100vh; }
+  /* ... (kopiere deinen CSS-Code aus deinem Projekt hierher) ... */
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Hier kommt der gesamte HTML-Body-Code deines Projekts rein, z.B. Header, Main, Modals -->
+
+<!-- ... (kopiere deinen kompletten HTML-Code für UI hierher) ... -->
+
+<!-- Notification -->
+<div id="notification" class="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg hidden z-50">
+  <div class="flex items-center">
+    <i class="fas fa-check-circle mr-2"></i>
+    <span id="notification-message">Erfolgreich!</span>
+  </div>
+</div>
+
+<script>
+  // === Firebase Konfiguration - ERSETZE hier mit deinen Firebase-Daten! ===
+  const firebaseConfig = {
+    apiKey: "DEIN_API_KEY",
+    authDomain: "DEIN_PROJECT.firebaseapp.com",
+    projectId: "DEIN_PROJECT_ID",
+    storageBucket: "DEIN_PROJECT.appspot.com",
+    messagingSenderId: "SENDER_ID",
+    appId: "APP_ID"
+  };
+
+  // Firebase initialisieren
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // Globale Variablen
+  let waiters = [];
+  let makers = [];
+  let owner = null;
+  let currentUser = null;
+  let orders = []; // Falls du auch Bestellungen in Firestore speichern willst, kannst du das hier erweitern
+
+  // Nutzer aus Firestore laden
+  async function loadUsers() {
+    waiters = [];
+    makers = [];
+    owner = null;
+    const snapshot = await db.collection('users').get();
+    snapshot.forEach(doc => {
+      const user = doc.data();
+      if (user.role === 'waiter') waiters.push(user);
+      else if (user.role === 'maker') makers.push(user);
+      else if (user.role === 'owner') owner = user;
+    });
+  }
+
+  // Login-Funktion (angepasst für Firebase)
+  async function login() {
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    const role = document.getElementById('login-modal').getAttribute('data-role');
+
+    if (!username || !password) {
+      showNotification('Bitte Benutzername und Passwort eingeben!', 'error');
+      return;
+    }
+
+    await loadUsers();
+
+    if (role === 'owner') {
+      if (owner && owner.username === username && owner.password === password) {
+        currentUser = { role: 'owner', name: owner.name || 'Owner' };
+        postLogin();
+        return;
+      }
+    } else if (role === 'cashier') {
+      const waiter = waiters.find(w => w.username === username && w.password === password);
+      if (waiter) {
+        currentUser = { role: 'cashier', name: waiter.name, id: waiter.id };
+        postLogin();
+        return;
+      }
+    } else if (role === 'maker') {
+      const maker = makers.find(m => m.username === username && m.password === password);
+      if (maker) {
+        currentUser = { role: 'maker', name: maker.name, id: maker.id, station: maker.station };
+        document.getElementById(`station-${maker.station}`).checked = true;
+        postLogin();
+        return;
+      }
+    }
+
+    showNotification('Falscher Benutzername oder Passwort!', 'error');
+  }
+
+  // Nach erfolgreichem Login
+  function postLogin() {
+    hideLoginModal();
+    showNotification(`Erfolgreich eingeloggt als ${currentUser.name}`);
+
+    // Views verstecken und nur passende anzeigen
+    document.getElementById('customer-view').classList.add('hidden');
+    document.getElementById('owner-dashboard').classList.add('hidden');
+    document.getElementById('cashier-dashboard').classList.add('hidden');
+    document.getElementById('maker-dashboard').classList.add('hidden');
+
+    if (currentUser.role === 'owner') {
+      document.getElementById('owner-dashboard').classList.remove('hidden');
+      updateOwnerDashboard();
+      updateWaitersList();
+    } else if (currentUser.role === 'cashier') {
+      document.getElementById('cashier-dashboard').classList.remove('hidden');
+      updateCashierActiveOrders();
+    } else if (currentUser.role === 'maker') {
+      document.getElementById('maker-dashboard').classList.remove('hidden');
+      updateMakerDashboard();
+    }
+  }
+
+  // Kellner hinzufügen
+  async function addWaiter() {
+    const name = document.getElementById('waiter-name').value.trim();
+    const username = document.getElementById('waiter-username').value.trim();
+    const password = document.getElementById('waiter-password').value;
+
+    if (!name || !username || !password) {
+      showNotification('Bitte alle Felder ausfüllen!', 'error');
+      return;
+    }
+
+    await loadUsers();
+    if (waiters.some(w => w.username === username)) {
+      showNotification('Benutzername bereits vergeben!', 'error');
+      return;
+    }
+
+    try {
+      await db.collection('users').add({ name, username, password, role: 'waiter' });
+      showNotification('Kellner erfolgreich hinzugefügt!');
+      hideAddWaiterModal();
+      await loadUsers();
+      updateWaitersList();
+    } catch (e) {
+      showNotification('Fehler beim Hinzufügen des Kellners', 'error');
+      console.error(e);
+    }
+  }
+
+  // Kellner löschen
+  async function deleteWaiter(username) {
+    try {
+      const snapshot = await db.collection('users')
+        .where('role', '==', 'waiter')
+        .where('username', '==', username)
+        .get();
+
+      const batch = db.batch();
+      snapshot.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+
+      showNotification('Kellner erfolgreich gelöscht!');
+      await loadUsers();
+      updateWaitersList();
+    } catch (e) {
+      showNotification('Fehler beim Löschen des Kellners', 'error');
+      console.error(e);
+    }
+  }
+
+  // Update Waiter List UI
+  function updateWaitersList() {
+    const waitersList = document.getElementById('waiters-list');
+    waitersList.innerHTML = '';
+
+    if (waiters.length === 0) {
+      waitersList.innerHTML = '<p class="text-gray-500 text-center py-4">Keine Kellner vorhanden</p>';
+      return;
+    }
+
+    waiters.forEach(waiter => {
+      const div = document.createElement('div');
+      div.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-lg';
+      div.innerHTML = `
+        <div>
+          <span class="font-medium">${waiter.name}</span>
+          <span class="text-sm text-gray-500 ml-2">(${waiter.username})</span>
+        </div>
+        <button onclick="deleteWaiter('${waiter.username}')" class="text-red-500 hover:text-red-700">
+          <i class="fas fa-trash-alt"></i>
+        </button>
+      `;
+      waitersList.appendChild(div);
+    });
+  }
+
+  // Beispiel Notification-Funktion
+  function showNotification(message, type = 'success') {
+    const notification = document.getElementById('notification');
+    notification.querySelector('#notification-message').textContent = message;
+    if (type === 'error') {
+      notification.classList.remove('bg-green-500');
+      notification.classList.add('bg-red-500');
+    } else {
+      notification.classList.remove('bg-red-500');
+      notification.classList.add('bg-green-500');
+    }
+    notification.classList.remove('hidden');
+    setTimeout(() => notification.classList.add('hidden'), 3000);
+  }
+
+  // Hier kannst du deine bisherigen Funktionen aus deinem Projekt einfügen:
+  // z.B. updateOwnerDashboard(), updateCashierActiveOrders(), updateMakerDashboard(), submitOrder(), etc.
+
+  // Beispiel: Login Modal show/hide Funktionen, etc.
+  function showLoginModal(role) {
+    document.getElementById('modal-title').textContent = `${role.charAt(0).toUpperCase() + role.slice(1)} Login`;
+    document.getElementById('login-modal').setAttribute('data-role', role);
+    document.getElementById('login-modal').classList.remove('hidden');
+  }
+  function hideLoginModal() {
+    document.getElementById('login-modal').classList.add('hidden');
+    document.getElementById('login-username').value = '';
+    document.getElementById('login-password').value = '';
+  }
+  // ... und so weiter ...
+
+  // Event Listener beim Laden
+  document.addEventListener('DOMContentLoaded', () => {
+    // Lade Nutzer und evtl. initialisiere weitere UI-Komponenten
+    loadUsers();
+  });
+</script>
+
+</body>
+</html>
