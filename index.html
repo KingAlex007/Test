@@ -24,9 +24,353 @@
 </head>
 <body class="min-h-screen">
 
-<!-- Hier kommt der gesamte HTML-Body-Code deines Projekts rein, z.B. Header, Main, Modals -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crepe Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #fff5f7;
+        }
+        
+        .pink-gradient {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+        }
+        
+        .menu-item {
+            transition: all 0.3s ease;
+        }
+        
+        .menu-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .floating-btn {
+            box-shadow: 0 4px 15px rgba(255, 105, 180, 0.3);
+        }
+        
+        .custom-radio:checked + .radio-label {
+            border-color: #ff6b8b;
+            background-color: #ffebee;
+        }
+        
+        .order-card {
+            transition: all 0.3s ease;
+        }
+        
+        .order-card:hover {
+            transform: scale(1.02);
+        }
+        
+        .blink {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Header with Menu -->
+    <header class="pink-gradient text-white shadow-lg">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">🍓 Crepe Delight</h1>
+            <div class="relative">
+                <button id="menu-btn" class="text-2xl focus:outline-none">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <div id="menu-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50">
+                    <div class="py-1">
+                        <button onclick="showLoginModal('owner')" class="block w-full text-left px-4 py-2 text-gray-800 hover:bg-pink-100">Owner Login</button>
+                        <button onclick="showLoginModal('cashier')" class="block w-full text-left px-4 py-2 text-gray-800 hover:bg-pink-100">Kassierer Login</button>
+                        <button onclick="showLoginModal('maker')" class="block w-full text-left px-4 py-2 text-gray-800 hover:bg-pink-100">Maker Login</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
 
-<!-- ... (kopiere deinen kompletten HTML-Code für UI hierher) ... -->
+    <!-- Main Content - Customer View by default -->
+    <main class="container mx-auto px-4 py-8">
+        <div id="customer-view" class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
+            <h2 class="text-2xl font-bold text-pink-600 mb-6 text-center">Bestellstatus prüfen</h2>
+            <div class="mb-4">
+                <label for="order-number" class="block text-gray-700 text-sm font-bold mb-2">Bestellnummer:</label>
+                <input type="text" id="order-number" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-pink-300" placeholder="12345">
+            </div>
+            <button onclick="checkOrderStatus()" class="w-full pink-gradient text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline hover:opacity-90 transition">
+                Status prüfen
+            </button>
+            
+            <div id="order-status" class="mt-6 hidden">
+                <div class="border-l-4 border-pink-500 pl-4">
+                    <h3 class="font-bold text-lg">Bestellstatus</h3>
+                    <p id="order-position" class="text-gray-700"></p>
+                    <p id="order-time" class="text-gray-700"></p>
+                    <p id="order-alert" class="hidden text-pink-600 font-bold blink">Bitte kommen Sie zum Crepe-Stand!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Owner Dashboard (hidden by default) -->
+        <div id="owner-dashboard" class="hidden">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-2xl font-bold text-pink-600">Owner Dashboard</h2>
+                <button onclick="showAddWaiterModal()" class="pink-gradient text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline hover:opacity-90 transition">
+                    <i class="fas fa-plus mr-2"></i>Neuer Kellner
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold mb-4">Umsatz heute</h3>
+                    <p class="text-3xl font-bold text-pink-600">€<span id="today-revenue">245.80</span></p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold mb-4">Aktive Bestellungen</h3>
+                    <p class="text-3xl font-bold text-pink-600"><span id="active-orders">7</span></p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold mb-4">Durchschnittliche Wartezeit</h3>
+                    <p class="text-3xl font-bold text-pink-600"><span id="avg-wait-time">12</span> min</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold mb-4">Umsatzverlauf</h3>
+                    <canvas id="revenue-chart" height="200"></canvas>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold mb-4">Beliebteste Crepes</h3>
+                    <canvas id="popular-crepes" height="200"></canvas>
+                </div>
+            </div>
+            
+            <div class="mt-8 bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-semibold mb-4">Aktuelle Bestellungen</h3>
+                <div id="current-orders-list" class="space-y-3">
+                    <!-- Orders will be added here dynamically -->
+                </div>
+            </div>
+            
+            <div class="mt-8 bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-semibold mb-4">Kellner verwalten</h3>
+                <div id="waiters-list" class="space-y-3">
+                    <!-- Waiters will be added here dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Cashier Dashboard (hidden by default) -->
+        <div id="cashier-dashboard" class="hidden">
+            <h2 class="text-2xl font-bold text-pink-600 mb-6">Kassierer Dashboard</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-2">
+                    <div class="bg-white p-6 rounded-lg shadow mb-6">
+                        <h3 class="text-lg font-semibold mb-4">Neue Bestellung</h3>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Crepe-Typ:</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <input type="radio" id="sweet-crepe" name="crepe-type" value="sweet" class="hidden custom-radio" checked>
+                                    <label for="sweet-crepe" class="radio-label block p-3 border-2 border-gray-200 rounded-lg cursor-pointer text-center">
+                                        <i class="fas fa-ice-cream text-2xl text-pink-500 mb-1"></i>
+                                        <span>Süß</span>
+                                    </label>
+                                </div>
+                                <div>
+                                    <input type="radio" id="savory-crepe" name="crepe-type" value="savory" class="hidden custom-radio">
+                                    <label for="savory-crepe" class="radio-label block p-3 border-2 border-gray-200 rounded-lg cursor-pointer text-center">
+                                        <i class="fas fa-cheese text-2xl text-yellow-500 mb-1"></i>
+                                        <span>Herzhaft</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Vordefinierte Crepes:</label>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <div>
+                                    <button onclick="addPredefinedCrepe('Nutella', 4.50)" class="w-full p-2 border border-gray-200 rounded hover:bg-pink-50 transition">
+                                        <div class="font-medium">Nutella</div>
+                                        <div class="text-sm text-gray-600">€4.50</div>
+                                    </button>
+                                </div>
+                                <div>
+                                    <button onclick="addPredefinedCrepe('Erdbeer', 5.00)" class="w-full p-2 border border-gray-200 rounded hover:bg-pink-50 transition">
+                                        <div class="font-medium">Erdbeer</div>
+                                        <div class="text-sm text-gray-600">€5.00</div>
+                                    </button>
+                                </div>
+                                <div>
+                                    <button onclick="addPredefinedCrepe('Banane', 4.80)" class="w-full p-2 border border-gray-200 rounded hover:bg-pink-50 transition">
+                                        <div class="font-medium">Banane</div>
+                                        <div class="text-sm text-gray-600">€4.80</div>
+                                    </button>
+                                </div>
+                                <div>
+                                    <button onclick="addPredefinedCrepe('Schinken-Käse', 6.00)" class="w-full p-2 border border-gray-200 rounded hover:bg-pink-50 transition">
+                                        <div class="font-medium">Schinken-Käse</div>
+                                        <div class="text-sm text-gray-600">€6.00</div>
+                                    </button>
+                                </div>
+                                <div>
+                                    <button onclick="addPredefinedCrepe('Spinaci', 5.50)" class="w-full p-2 border border-gray-200 rounded hover:bg-pink-50 transition">
+                                        <div class="font-medium">Spinaci</div>
+                                        <div class="text-sm text-gray-600">€5.50</div>
+                                    </button>
+                                </div>
+                                <div>
+                                    <button onclick="showCustomCrepeModal()" class="w-full p-2 border border-gray-200 rounded hover:bg-pink-50 transition">
+                                        <div class="font-medium">Custom</div>
+                                        <div class="text-sm text-gray-600">Auswahl</div>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Extras:</label>
+                            <div class="grid grid-cols-3 md:grid-cols-6 gap-2">
+                                <div>
+                                    <button onclick="addExtra('Eis', 1.50)" class="w-full p-2 text-xs border border-gray-200 rounded hover:bg-pink-50 transition">
+                                        Eis +€1.50
+                                    </button>
+                                </div>
+                                <div>
+                                    <button onclick="addExtra('Sahne', 1.00)" class="w-full p-2 text-xs border border-gray-200 rounded hover:bg-pink-50 transition">
+                                        Sahne +€1.00
+                                    </button>
+                                </div>
+                                <div>
+                                    <button onclick="addExtra('Schoko', 0.80)" class="w-full p-2 text-xs border border-gray-200 rounded hover:bg-pink-50 transition">
+                                        Schoko +€0.80
+                                    </button>
+                                </div>
+                                <div>
+                                    <button onclick="addExtra('Nüsse', 1.20)" class="w-full p-2 text-xs border border-gray-200 rounded hover:bg-pink-50 transition">
+                                        Nüsse +€1.20
+                                    </button>
+                                </div>
+                                <div>
+                                    <button onclick="addExtra('Obst', 1.50)" class="w-full p-2 text-xs border border-gray-200 rounded hover:bg-pink-50 transition">
+                                        Obst +€1.50
+                                    </button>
+                                </div>
+                                <div>
+                                    <button onclick="addExtra('Sirup', 0.50)" class="w-full p-2 text-xs border border-gray-200 rounded hover:bg-pink-50 transition">
+                                        Sirup +€0.50
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="bg-white p-6 rounded-lg shadow sticky top-4">
+                        <h3 class="text-lg font-semibold mb-4">Aktuelle Bestellung</h3>
+                        <div id="current-order-items" class="mb-4">
+                            <!-- Order items will be added here -->
+                            <p class="text-gray-500 text-center py-4">Fügen Sie Crepes hinzu</p>
+                        </div>
+                        <div class="border-t pt-4">
+                            <div class="flex justify-between mb-2">
+                                <span class="font-medium">Zwischensumme:</span>
+                                <span>€<span id="subtotal">0.00</span></span>
+                            </div>
+                            <div class="flex justify-between mb-2">
+                                <span class="font-medium">MwSt (7%):</span>
+                                <span>€<span id="tax">0.00</span></span>
+                            </div>
+                            <div class="flex justify-between font-bold text-lg">
+                                <span>Gesamt:</span>
+                                <span>€<span id="total">0.00</span></span>
+                            </div>
+                        </div>
+                        <button onclick="submitOrder()" class="w-full mt-4 pink-gradient text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline hover:opacity-90 transition">
+                            Bestellung abschließen (€<span id="order-total">0.00</span>)
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-semibold mb-4">Aktive Bestellungen</h3>
+                <div id="cashier-active-orders" class="space-y-3">
+                    <!-- Active orders will be added here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Maker Dashboard (hidden by default) -->
+        <div id="maker-dashboard" class="hidden">
+            <h2 class="text-2xl font-bold text-pink-600 mb-6">Maker Dashboard</h2>
+            
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Station auswählen:</label>
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <input type="radio" id="station-1" name="maker-station" value="1" class="hidden custom-radio" checked>
+                        <label for="station-1" class="radio-label block p-4 border-2 border-gray-200 rounded-lg cursor-pointer text-center">
+                            <i class="fas fa-1 text-2xl text-pink-500 mb-1"></i>
+                            <span>Station 1</span>
+                        </label>
+                    </div>
+                    <div>
+                        <input type="radio" id="station-2" name="maker-station" value="2" class="hidden custom-radio">
+                        <label for="station-2" class="radio-label block p-4 border-2 border-gray-200 rounded-lg cursor-pointer text-center">
+                            <i class="fas fa-2 text-2xl text-pink-500 mb-1"></i>
+                            <span>Station 2</span>
+                        </label>
+                    </div>
+                    <div>
+                        <input type="radio" id="station-3" name="maker-station" value="3" class="hidden custom-radio">
+                        <label for="station-3" class="radio-label block p-4 border-2 border-gray-200 rounded-lg cursor-pointer text-center">
+                            <i class="fas fa-3 text-2xl text-pink-500 mb-1"></i>
+                            <span>Station 3</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-semibold mb-4">Aktuelle Bestellung</h3>
+                <div id="current-maker-order" class="text-center py-8 text-gray-500">
+                    Keine aktive Bestellung für diese Station
+                </div>
+                <div class="flex justify-center space-x-4">
+                    <button onclick="markOrderAsDone()" class="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition hidden" id="complete-order-btn">
+                        <i class="fas fa-check mr-2"></i>Fertiggestellt
+                    </button>
+                    <button onclick="skipOrder()" class="px-6 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition hidden" id="skip-order-btn">
+                        <i class="fas fa-forward mr-2"></i>Überspringen
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mt-6 bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-semibold mb-4">Warteschlange</h3>
+                <div id="maker-order-queue" class="space-y-3">
+                    <!-- Order queue will be added here -->
+                </div>
+            </div>
+        </div>
+    </main>
 
 <!-- Notification -->
 <div id="notification" class="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg hidden z-50">
