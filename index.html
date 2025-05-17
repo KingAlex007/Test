@@ -1,23 +1,16 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Crepe Management System mit Firebase</title>
-
-<!-- Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com"></script>
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- Font Awesome -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crepe Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
         
         body {
             font-family: 'Poppins', sans-serif;
@@ -25,11 +18,7 @@
         }
         
         .pink-gradient {
-            background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
-        }
-        
-        .menu-item {
-            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #f9c5d1 0%, #f7a8b8 100%);
         }
         
         .menu-item:hover {
@@ -37,754 +26,466 @@
             box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
         
-        .floating-btn {
-            box-shadow: 0 4px 15px rgba(255, 105, 180, 0.3);
-        }
-        
-        .custom-radio:checked + .radio-label {
-            border-color: #ff6b8b;
-            background-color: #ffebee;
-        }
-        
         .order-card {
             transition: all 0.3s ease;
         }
         
         .order-card:hover {
-            transform: scale(1.02);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
         }
         
-        .blink {
-            animation: blink 1s infinite;
+        .custom-radio input:checked + label {
+            background-color: #f687b3;
+            color: white;
         }
         
-        @keyframes blink {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+        .progress-bar {
+            transition: width 0.5s ease;
         }
-  body { font-family: 'Poppins', sans-serif; background-color: #fff5f7; min-height: 100vh; }
-  /* ... (kopiere deinen CSS-Code aus deinem Projekt hierher) ... */
-</style>
+        
+        /* Animation for notification */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .notification {
+            animation: slideIn 0.5s forwards;
+        }
+    </style>
 </head>
 <body class="min-h-screen">
-    <!-- Header with Menu -->
-    <header class="pink-gradient text-white shadow-lg">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <h1 class="text-2xl font-bold">🍓 Crepe Delight</h1>
+    <!-- Firebase Configuration -->
+    <script>
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCrxLW9hnG1V_7jFaSx0Sux9SLZei0AX1Q",
+            authDomain: "crepesmanagement.firebaseapp.com",
+            projectId: "crepesmanagement",
+            storageBucket: "crepesmanagement.firebasestorage.app",
+            messagingSenderId: "520970868529",
+            appId: "1:520970868529:web:f3da551aef4a97da884210"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+    </script>
+
+    <!-- Main Container -->
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header with Menu -->
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-pink-700">🍓 Crepe Delight</h1>
             <div class="relative">
-                <button id="menu-btn" class="text-2xl focus:outline-none">
-                    <i class="fas fa-ellipsis-v"></i>
+                <button id="menuButton" class="p-2 rounded-full hover:bg-pink-200 transition">
+                    <i class="fas fa-ellipsis-v text-pink-700 text-xl"></i>
                 </button>
-                <div id="menu-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50">
+                <div id="dropdownMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
                     <div class="py-1">
-                        <button onclick="showLoginModal('owner')" class="block w-full text-left px-4 py-2 text-gray-800 hover:bg-pink-100">Owner Login</button>
-                        <button onclick="showLoginModal('cashier')" class="block w-full text-left px-4 py-2 text-gray-800 hover:bg-pink-100">Kassierer Login</button>
-                        <button onclick="showLoginModal('maker')" class="block w-full text-left px-4 py-2 text-gray-800 hover:bg-pink-100">Maker Login</button>
+                        <button onclick="showLoginModal('owner')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-pink-100">Owner Login</button>
+                        <button onclick="showLoginModal('cashier')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-pink-100">Kassierer Login</button>
+                        <button onclick="showLoginModal('maker')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-pink-100">Maker Login</button>
                     </div>
                 </div>
             </div>
-        </div>
-    </header>
+        </header>
 
-    <!-- Main Content - Customer View by default -->
-    <main class="container mx-auto px-4 py-8">
-        <div id="customer-view" class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
-            <h2 class="text-2xl font-bold text-pink-600 mb-6 text-center">Bestellstatus prüfen</h2>
-            <div class="mb-4">
-                <label for="order-number" class="block text-gray-700 text-sm font-bold mb-2">Bestellnummer:</label>
-                <input type="text" id="order-number" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-pink-300" placeholder="12345">
-            </div>
-            <button onclick="checkOrderStatus()" class="w-full pink-gradient text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline hover:opacity-90 transition">
-                Status prüfen
-            </button>
-            
-            <div id="order-status" class="mt-6 hidden">
-                <div class="border-l-4 border-pink-500 pl-4">
-                    <h3 class="font-bold text-lg">Bestellstatus</h3>
-                    <p id="order-position" class="text-gray-700"></p>
-                    <p id="order-time" class="text-gray-700"></p>
-                    <p id="order-alert" class="hidden text-pink-600 font-bold blink">Bitte kommen Sie zum Crepe-Stand!</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Owner Dashboard (hidden by default) -->
-        <div id="owner-dashboard" class="hidden">
-            <div class="flex justify-between items-center mb-8">
-                <h2 class="text-2xl font-bold text-pink-600">Owner Dashboard</h2>
-                <button onclick="showAddWaiterModal()" class="pink-gradient text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline hover:opacity-90 transition">
-                    <i class="fas fa-plus mr-2"></i>Neuer Kellner
-                </button>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h3 class="text-lg font-semibold mb-4">Umsatz heute</h3>
-                    <p class="text-3xl font-bold text-pink-600">€<span id="today-revenue">245.80</span></p>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h3 class="text-lg font-semibold mb-4">Aktive Bestellungen</h3>
-                    <p class="text-3xl font-bold text-pink-600"><span id="active-orders">7</span></p>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h3 class="text-lg font-semibold mb-4">Durchschnittliche Wartezeit</h3>
-                    <p class="text-3xl font-bold text-pink-600"><span id="avg-wait-time">12</span> min</p>
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h3 class="text-lg font-semibold mb-4">Umsatzverlauf</h3>
-                    <canvas id="revenue-chart" height="200"></canvas>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h3 class="text-lg font-semibold mb-4">Beliebteste Crepes</h3>
-                    <canvas id="popular-crepes" height="200"></canvas>
-                </div>
-            </div>
-            
-            <div class="mt-8 bg-white p-6 rounded-lg shadow">
-                <h3 class="text-lg font-semibold mb-4">Aktuelle Bestellungen</h3>
-                <div id="current-orders-list" class="space-y-3">
-                    <!-- Orders will be added here dynamically -->
-                </div>
-            </div>
-            
-            <div class="mt-8 bg-white p-6 rounded-lg shadow">
-                <h3 class="text-lg font-semibold mb-4">Kellner verwalten</h3>
-                <div id="waiters-list" class="space-y-3">
-                    <!-- Waiters will be added here dynamically -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Cashier Dashboard (hidden by default) -->
-        <div id="cashier-dashboard" class="hidden">
-            <h2 class="text-2xl font-bold text-pink-600 mb-6">Kassierer Dashboard</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="md:col-span-2">
-                    <div class="bg-white p-6 rounded-lg shadow mb-6">
-                        <h3 class="text-lg font-semibold mb-4">Neue Bestellung</h3>
-                        
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Crepe-Typ:</label>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <input type="radio" id="sweet-crepe" name="crepe-type" value="sweet" class="hidden custom-radio" checked>
-                                    <label for="sweet-crepe" class="radio-label block p-3 border-2 border-gray-200 rounded-lg cursor-pointer text-center">
-                                        <i class="fas fa-ice-cream text-2xl text-pink-500 mb-1"></i>
-                                        <span>Süß</span>
-                                    </label>
-                                </div>
-                                <div>
-                                    <input type="radio" id="savory-crepe" name="crepe-type" value="savory" class="hidden custom-radio">
-                                    <label for="savory-crepe" class="radio-label block p-3 border-2 border-gray-200 rounded-lg cursor-pointer text-center">
-                                        <i class="fas fa-cheese text-2xl text-yellow-500 mb-1"></i>
-                                        <span>Herzhaft</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Vordefinierte Crepes:</label>
-                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                <div>
-                                    <button onclick="addPredefinedCrepe('Nutella', 4.50)" class="w-full p-2 border border-gray-200 rounded hover:bg-pink-50 transition">
-                                        <div class="font-medium">Nutella</div>
-                                        <div class="text-sm text-gray-600">€4.50</div>
-                                    </button>
-                                </div>
-                                <div>
-                                    <button onclick="addPredefinedCrepe('Erdbeer', 5.00)" class="w-full p-2 border border-gray-200 rounded hover:bg-pink-50 transition">
-                                        <div class="font-medium">Erdbeer</div>
-                                        <div class="text-sm text-gray-600">€5.00</div>
-                                    </button>
-                                </div>
-                                <div>
-                                    <button onclick="addPredefinedCrepe('Banane', 4.80)" class="w-full p-2 border border-gray-200 rounded hover:bg-pink-50 transition">
-                                        <div class="font-medium">Banane</div>
-                                        <div class="text-sm text-gray-600">€4.80</div>
-                                    </button>
-                                </div>
-                                <div>
-                                    <button onclick="addPredefinedCrepe('Schinken-Käse', 6.00)" class="w-full p-2 border border-gray-200 rounded hover:bg-pink-50 transition">
-                                        <div class="font-medium">Schinken-Käse</div>
-                                        <div class="text-sm text-gray-600">€6.00</div>
-                                    </button>
-                                </div>
-                                <div>
-                                    <button onclick="addPredefinedCrepe('Spinaci', 5.50)" class="w-full p-2 border border-gray-200 rounded hover:bg-pink-50 transition">
-                                        <div class="font-medium">Spinaci</div>
-                                        <div class="text-sm text-gray-600">€5.50</div>
-                                    </button>
-                                </div>
-                                <div>
-                                    <button onclick="showCustomCrepeModal()" class="w-full p-2 border border-gray-200 rounded hover:bg-pink-50 transition">
-                                        <div class="font-medium">Custom</div>
-                                        <div class="text-sm text-gray-600">Auswahl</div>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Extras:</label>
-                            <div class="grid grid-cols-3 md:grid-cols-6 gap-2">
-                                <div>
-                                    <button onclick="addExtra('Eis', 1.50)" class="w-full p-2 text-xs border border-gray-200 rounded hover:bg-pink-50 transition">
-                                        Eis +€1.50
-                                    </button>
-                                </div>
-                                <div>
-                                    <button onclick="addExtra('Sahne', 1.00)" class="w-full p-2 text-xs border border-gray-200 rounded hover:bg-pink-50 transition">
-                                        Sahne +€1.00
-                                    </button>
-                                </div>
-                                <div>
-                                    <button onclick="addExtra('Schoko', 0.80)" class="w-full p-2 text-xs border border-gray-200 rounded hover:bg-pink-50 transition">
-                                        Schoko +€0.80
-                                    </button>
-                                </div>
-                                <div>
-                                    <button onclick="addExtra('Nüsse', 1.20)" class="w-full p-2 text-xs border border-gray-200 rounded hover:bg-pink-50 transition">
-                                        Nüsse +€1.20
-                                    </button>
-                                </div>
-                                <div>
-                                    <button onclick="addExtra('Obst', 1.50)" class="w-full p-2 text-xs border border-gray-200 rounded hover:bg-pink-50 transition">
-                                        Obst +€1.50
-                                    </button>
-                                </div>
-                                <div>
-                                    <button onclick="addExtra('Sirup', 0.50)" class="w-full p-2 text-xs border border-gray-200 rounded hover:bg-pink-50 transition">
-                                        Sirup +€0.50
-                                    </button>
-                                </div>
-                            </div>
+        <!-- Customer Section (Default View) -->
+        <section id="customerSection" class="mb-12">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden pink-gradient p-6">
+                <h2 class="text-2xl font-semibold text-white mb-6">Kundenbereich</h2>
+                <div class="bg-white rounded-lg p-6 shadow-inner">
+                    <div class="mb-6">
+                        <label for="orderNumber" class="block text-sm font-medium text-pink-700 mb-2">Ihre Bestellnummer:</label>
+                        <div class="flex">
+                            <input type="text" id="orderNumber" class="flex-1 px-4 py-2 border border-pink-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="z.B. C-12345">
+                            <button onclick="checkOrderStatus()" class="bg-pink-600 text-white px-4 py-2 rounded-r-lg hover:bg-pink-700 transition">Status prüfen</button>
                         </div>
                     </div>
+                    
+                    <div id="orderStatus" class="hidden bg-pink-50 border-l-4 border-pink-500 p-4 rounded-lg">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-medium text-pink-800">Bestellstatus</h3>
+                            <span id="orderNumberDisplay" class="bg-pink-200 text-pink-800 px-2 py-1 rounded text-sm"></span>
+                        </div>
+                        <div class="mb-4">
+                            <div class="flex justify-between text-sm text-pink-700 mb-1">
+                                <span>Position in der Warteschlange:</span>
+                                <span id="queuePosition">0</span>
+                            </div>
+                            <div class="w-full bg-pink-200 rounded-full h-2.5">
+                                <div id="progressBar" class="bg-pink-600 h-2.5 rounded-full progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between text-sm text-pink-700 mb-1">
+                            <span>Geschätzte Wartezeit:</span>
+                            <span id="waitTime">0 Minuten</span>
+                        </div>
+                        <div id="readyNotification" class="hidden mt-4 p-3 bg-green-100 border-l-4 border-green-500 text-green-700 rounded">
+                            <i class="fas fa-bell mr-2"></i> Ihre Bestellung ist fertig! Bitte kommen Sie zum Crepe-Stand.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Owner Section (Hidden by default) -->
+        <section id="ownerSection" class="hidden mb-12">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden pink-gradient p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-white">Owner Dashboard</h2>
+                    <button onclick="logout()" class="bg-white text-pink-700 px-4 py-2 rounded-lg hover:bg-pink-100 transition">Logout</button>
                 </div>
                 
-                <div>
-                    <div class="bg-white p-6 rounded-lg shadow sticky top-4">
-                        <h3 class="text-lg font-semibold mb-4">Aktuelle Bestellung</h3>
-                        <div id="current-order-items" class="mb-4">
-                            <!-- Order items will be added here -->
-                            <p class="text-gray-500 text-center py-4">Fügen Sie Crepes hinzu</p>
+                <div class="bg-white rounded-lg p-6 shadow-inner">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                            <h3 class="font-medium text-pink-800 mb-2">Neue Bestellung</h3>
+                            <button onclick="showOrderModal()" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition">
+                                <i class="fas fa-plus mr-2"></i> Bestellung aufgeben
+                            </button>
                         </div>
-                        <div class="border-t pt-4">
-                            <div class="flex justify-between mb-2">
-                                <span class="font-medium">Zwischensumme:</span>
-                                <span>€<span id="subtotal">0.00</span></span>
-                            </div>
-                            <div class="flex justify-between mb-2">
-                                <span class="font-medium">MwSt (7%):</span>
-                                <span>€<span id="tax">0.00</span></span>
-                            </div>
-                            <div class="flex justify-between font-bold text-lg">
-                                <span>Gesamt:</span>
-                                <span>€<span id="total">0.00</span></span>
+                        <div class="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                            <h3 class="font-medium text-pink-800 mb-2">Mitarbeiter verwalten</h3>
+                            <button onclick="showStaffModal('waiter')" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition mb-2">
+                                <i class="fas fa-user-plus mr-2"></i> Kellner hinzufügen
+                            </button>
+                            <button onclick="showStaffModal('maker')" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition">
+                                <i class="fas fa-user-plus mr-2"></i> Maker hinzufügen
+                            </button>
+                        </div>
+                        <div class="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                            <h3 class="font-medium text-pink-800 mb-2">Statistiken</h3>
+                            <div class="text-center">
+                                <div class="text-3xl font-bold text-pink-700" id="totalOrders">0</div>
+                                <div class="text-sm text-pink-600">Bestellungen heute</div>
                             </div>
                         </div>
-                        <button onclick="submitOrder()" class="w-full mt-4 pink-gradient text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline hover:opacity-90 transition">
-                            Bestellung abschließen (€<span id="order-total">0.00</span>)
+                    </div>
+                    
+                    <h3 class="font-medium text-pink-800 mb-4">Aktive Bestellungen</h3>
+                    <div id="activeOrders" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                        <!-- Orders will be loaded here -->
+                    </div>
+                    
+                    <h3 class="font-medium text-pink-800 mb-4">Umsatzstatistik</h3>
+                    <div class="bg-white p-4 rounded-lg border border-pink-200 mb-8">
+                        <canvas id="revenueChart" height="150"></canvas>
+                    </div>
+                    
+                    <h3 class="font-medium text-pink-800 mb-4">Mitarbeiterliste</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                            <thead class="bg-pink-100 text-pink-800">
+                                <tr>
+                                    <th class="py-3 px-4 text-left">Name</th>
+                                    <th class="py-3 px-4 text-left">Rolle</th>
+                                    <th class="py-3 px-4 text-left">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffList" class="divide-y divide-pink-200">
+                                <!-- Staff will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cashier Section (Hidden by default) -->
+        <section id="cashierSection" class="hidden mb-12">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden pink-gradient p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-white">Kassierer Dashboard</h2>
+                    <button onclick="logout()" class="bg-white text-pink-700 px-4 py-2 rounded-lg hover:bg-pink-100 transition">Logout</button>
+                </div>
+                
+                <div class="bg-white rounded-lg p-6 shadow-inner">
+                    <h3 class="font-medium text-pink-800 mb-4">Neue Bestellung</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div class="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                            <h4 class="font-medium text-pink-700 mb-3">Vordefinierte Crepes</h4>
+                            <div class="space-y-2">
+                                <button onclick="addToOrder('Classic', 4.50)" class="w-full text-left bg-white hover:bg-pink-100 px-3 py-2 rounded border border-pink-200 transition">
+                                    <span class="font-medium">Classic</span> - €4.50
+                                </button>
+                                <button onclick="addToOrder('Nutella', 5.00)" class="w-full text-left bg-white hover:bg-pink-100 px-3 py-2 rounded border border-pink-200 transition">
+                                    <span class="font-medium">Nutella</span> - €5.00
+                                </button>
+                                <button onclick="addToOrder('Berry', 5.50)" class="w-full text-left bg-white hover:bg-pink-100 px-3 py-2 rounded border border-pink-200 transition">
+                                    <span class="font-medium">Berry</span> - €5.50
+                                </button>
+                                <button onclick="addToOrder('Banana Split', 6.00)" class="w-full text-left bg-white hover:bg-pink-100 px-3 py-2 rounded border border-pink-200 transition">
+                                    <span class="font-medium">Banana Split</span> - €6.00
+                                </button>
+                            </div>
+                        </div>
+                        <div class="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                            <h4 class="font-medium text-pink-700 mb-3">Custom Crepe erstellen</h4>
+                            <div class="mb-3">
+                                <label class="block text-sm text-pink-700 mb-1">Basis:</label>
+                                <select id="baseSelect" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
+                                    <option value="Classic">Classic (€4.00)</option>
+                                    <option value="Whole Wheat">Whole Wheat (€4.50)</option>
+                                    <option value="Gluten Free">Gluten Free (€5.00)</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="block text-sm text-pink-700 mb-1">Toppings (€0.50 each):</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="form-checkbox text-pink-600" value="Nutella"> Nutella
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="form-checkbox text-pink-600" value="Strawberries"> Strawberries
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="form-checkbox text-pink-600" value="Bananas"> Bananas
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="form-checkbox text-pink-600" value="Whipped Cream"> Whipped Cream
+                                    </label>
+                                </div>
+                            </div>
+                            <button onclick="createCustomCrepe()" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition">
+                                <i class="fas fa-plus mr-2"></i> Zum Warenkorb hinzufügen
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <h3 class="font-medium text-pink-800 mb-3">Aktuelle Bestellung</h3>
+                    <div id="currentOrderItems" class="mb-4 border-b border-pink-200 pb-4">
+                        <!-- Order items will appear here -->
+                        <div class="text-center text-pink-500 py-4">Noch keine Artikel hinzugefügt</div>
+                    </div>
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="text-lg font-semibold text-pink-800">Gesamt:</div>
+                        <div id="orderTotal" class="text-xl font-bold text-pink-700">€0.00</div>
+                    </div>
+                    <button onclick="submitOrder()" class="w-full bg-pink-600 text-white py-3 rounded-lg hover:bg-pink-700 transition font-medium">
+                        <i class="fas fa-paper-plane mr-2"></i> Bestellung abschicken
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Maker Section (Hidden by default) -->
+        <section id="makerSection" class="hidden mb-12">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden pink-gradient p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-white">Maker Dashboard</h2>
+                    <button onclick="logout()" class="bg-white text-pink-700 px-4 py-2 rounded-lg hover:bg-pink-100 transition">Logout</button>
+                </div>
+                
+                <div class="bg-white rounded-lg p-6 shadow-inner">
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-pink-700 mb-2">Station auswählen:</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="custom-radio">
+                                <input type="radio" id="station1" name="station" value="1" class="hidden" checked onchange="loadStationOrders(1)">
+                                <label for="station1" class="block text-center py-2 px-4 border border-pink-300 rounded-lg cursor-pointer transition">Station 1</label>
+                            </div>
+                            <div class="custom-radio">
+                                <input type="radio" id="station2" name="station" value="2" class="hidden" onchange="loadStationOrders(2)">
+                                <label for="station2" class="block text-center py-2 px-4 border border-pink-300 rounded-lg cursor-pointer transition">Station 2</label>
+                            </div>
+                            <div class="custom-radio">
+                                <input type="radio" id="station3" name="station" value="3" class="hidden" onchange="loadStationOrders(3)">
+                                <label for="station3" class="block text-center py-2 px-4 border border-pink-300 rounded-lg cursor-pointer transition">Station 3</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h3 class="font-medium text-pink-800 mb-4">Aktuelle Bestellung</h3>
+                    <div id="currentMakerOrder" class="bg-pink-50 p-4 rounded-lg border border-pink-200 mb-6 min-h-32">
+                        <div class="text-center text-pink-500 py-4">Keine aktive Bestellung</div>
+                    </div>
+                    
+                    <div class="flex space-x-3">
+                        <button id="startOrderBtn" onclick="startOrder()" class="flex-1 bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition disabled:opacity-50" disabled>
+                            <i class="fas fa-play mr-2"></i> Starten
+                        </button>
+                        <button id="completeOrderBtn" onclick="completeOrder()" class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50" disabled>
+                            <i class="fas fa-check mr-2"></i> Fertigstellen
                         </button>
                     </div>
-                </div>
-            </div>
-            
-            <div class="mt-6 bg-white p-6 rounded-lg shadow">
-                <h3 class="text-lg font-semibold mb-4">Aktive Bestellungen</h3>
-                <div id="cashier-active-orders" class="space-y-3">
-                    <!-- Active orders will be added here -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Maker Dashboard (hidden by default) -->
-        <div id="maker-dashboard" class="hidden">
-            <h2 class="text-2xl font-bold text-pink-600 mb-6">Maker Dashboard</h2>
-            
-            <div class="mb-6">
-                <label class="block text-gray-700 text-sm font-bold mb-2">Station auswählen:</label>
-                <div class="grid grid-cols-3 gap-3">
-                    <div>
-                        <input type="radio" id="station-1" name="maker-station" value="1" class="hidden custom-radio" checked>
-                        <label for="station-1" class="radio-label block p-4 border-2 border-gray-200 rounded-lg cursor-pointer text-center">
-                            <i class="fas fa-1 text-2xl text-pink-500 mb-1"></i>
-                            <span>Station 1</span>
-                        </label>
-                    </div>
-                    <div>
-                        <input type="radio" id="station-2" name="maker-station" value="2" class="hidden custom-radio">
-                        <label for="station-2" class="radio-label block p-4 border-2 border-gray-200 rounded-lg cursor-pointer text-center">
-                            <i class="fas fa-2 text-2xl text-pink-500 mb-1"></i>
-                            <span>Station 2</span>
-                        </label>
-                    </div>
-                    <div>
-                        <input type="radio" id="station-3" name="maker-station" value="3" class="hidden custom-radio">
-                        <label for="station-3" class="radio-label block p-4 border-2 border-gray-200 rounded-lg cursor-pointer text-center">
-                            <i class="fas fa-3 text-2xl text-pink-500 mb-1"></i>
-                            <span>Station 3</span>
-                        </label>
+                    
+                    <h3 class="font-medium text-pink-800 mt-8 mb-4">Warteschlange</h3>
+                    <div id="orderQueue" class="space-y-3">
+                        <!-- Orders will appear here -->
+                        <div class="text-center text-pink-500 py-4">Keine Bestellungen in der Warteschlange</div>
                     </div>
                 </div>
             </div>
-            
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h3 class="text-lg font-semibold mb-4">Aktuelle Bestellung</h3>
-                <div id="current-maker-order" class="text-center py-8 text-gray-500">
-                    Keine aktive Bestellung für diese Station
-                </div>
-                <div class="flex justify-center space-x-4">
-                    <button onclick="markOrderAsDone()" class="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition hidden" id="complete-order-btn">
-                        <i class="fas fa-check mr-2"></i>Fertiggestellt
-                    </button>
-                    <button onclick="skipOrder()" class="px-6 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition hidden" id="skip-order-btn">
-                        <i class="fas fa-forward mr-2"></i>Überspringen
-                    </button>
-                </div>
-            </div>
-            
-            <div class="mt-6 bg-white p-6 rounded-lg shadow">
-                <h3 class="text-lg font-semibold mb-4">Warteschlange</h3>
-                <div id="maker-order-queue" class="space-y-3">
-                    <!-- Order queue will be added here -->
-                </div>
-            </div>
-        </div>
-    </main>
+        </section>
+    </div>
 
     <!-- Login Modal -->
-    <div id="login-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg p-6 w-full max-w-md">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-pink-600" id="modal-title">Login</h3>
-                <button onclick="hideLoginModal()" class="text-gray-500 hover:text-gray-700">
+                <h3 id="loginTitle" class="text-xl font-semibold text-pink-700">Login</h3>
+                <button onclick="hideModal('loginModal')" class="text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="mb-4">
-                <label for="login-username" class="block text-gray-700 text-sm font-bold mb-2">Benutzername:</label>
-                <input type="text" id="login-username" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-pink-300">
+                <label for="loginEmail" class="block text-sm font-medium text-pink-700 mb-1">Email</label>
+                <input type="email" id="loginEmail" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
             </div>
             <div class="mb-6">
-                <label for="login-password" class="block text-gray-700 text-sm font-bold mb-2">Passwort:</label>
-                <input type="password" id="login-password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-pink-300">
+                <label for="loginPassword" class="block text-sm font-medium text-pink-700 mb-1">Passwort</label>
+                <input type="password" id="loginPassword" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
             </div>
-            <button onclick="login()" class="w-full pink-gradient text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline hover:opacity-90 transition">
+            <button id="loginButton" onclick="login()" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition">
                 Einloggen
             </button>
+            <div id="loginError" class="mt-3 text-sm text-red-600 hidden"></div>
         </div>
     </div>
 
-    <!-- Add Waiter Modal -->
-    <div id="add-waiter-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <!-- Order Modal -->
+    <div id="orderModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg p-6 w-full max-w-md">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-pink-600">Neuer Kellner</h3>
-                <button onclick="hideAddWaiterModal()" class="text-gray-500 hover:text-gray-700">
+                <h3 class="text-xl font-semibold text-pink-700">Neue Bestellung</h3>
+                <button onclick="hideModal('orderModal')" class="text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="mb-4">
-                <label for="waiter-name" class="block text-gray-700 text-sm font-bold mb-2">Name:</label>
-                <input type="text" id="waiter-name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-pink-300">
+                <label class="block text-sm font-medium text-pink-700 mb-1">Crepe auswählen</label>
+                <select id="orderCrepeSelect" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
+                    <option value="Classic">Classic (€4.50)</option>
+                    <option value="Nutella">Nutella (€5.00)</option>
+                    <option value="Berry">Berry (€5.50)</option>
+                    <option value="Banana Split">Banana Split (€6.00)</option>
+                </select>
             </div>
             <div class="mb-4">
-                <label for="waiter-username" class="block text-gray-700 text-sm font-bold mb-2">Benutzername:</label>
-                <input type="text" id="waiter-username" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-pink-300">
+                <label for="orderCustomerName" class="block text-sm font-medium text-pink-700 mb-1">Kundenname</label>
+                <input type="text" id="orderCustomerName" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500" placeholder="Optional">
             </div>
-            <div class="mb-6">
-                <label for="waiter-password" class="block text-gray-700 text-sm font-bold mb-2">Passwort:</label>
-                <input type="password" id="waiter-password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-pink-300">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-pink-700 mb-1">Station</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="custom-radio">
+                        <input type="radio" id="orderStation1" name="orderStation" value="1" class="hidden" checked>
+                        <label for="orderStation1" class="block text-center py-2 px-4 border border-pink-300 rounded-lg cursor-pointer transition">Station 1</label>
+                    </div>
+                    <div class="custom-radio">
+                        <input type="radio" id="orderStation2" name="orderStation" value="2" class="hidden">
+                        <label for="orderStation2" class="block text-center py-2 px-4 border border-pink-300 rounded-lg cursor-pointer transition">Station 2</label>
+                    </div>
+                    <div class="custom-radio">
+                        <input type="radio" id="orderStation3" name="orderStation" value="3" class="hidden">
+                        <label for="orderStation3" class="block text-center py-2 px-4 border border-pink-300 rounded-lg cursor-pointer transition">Station 3</label>
+                    </div>
+                </div>
             </div>
-            <button onclick="addWaiter()" class="w-full pink-gradient text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline hover:opacity-90 transition">
-                Kellner hinzufügen
+            <button onclick="submitOwnerOrder()" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition">
+                Bestellung aufgeben
             </button>
         </div>
     </div>
 
-    <!-- Custom Crepe Modal -->
-    <div id="custom-crepe-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <!-- Staff Modal -->
+    <div id="staffModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg p-6 w-full max-w-md">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-pink-600">Custom Crepe erstellen</h3>
-                <button onclick="hideCustomCrepeModal()" class="text-gray-500 hover:text-gray-700">
+                <h3 id="staffModalTitle" class="text-xl font-semibold text-pink-700">Mitarbeiter hinzufügen</h3>
+                <button onclick="hideModal('staffModal')" class="text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-bold mb-2">Basis:</label>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <input type="radio" id="base-normal" name="crepe-base" value="normal" class="hidden custom-radio" checked>
-                        <label for="base-normal" class="radio-label block p-2 border-2 border-gray-200 rounded cursor-pointer text-center text-sm">
-                            Normal (€3.50)
-                        </label>
-                    </div>
-                    <div>
-                        <input type="radio" id="base-chocolate" name="crepe-base" value="chocolate" class="hidden custom-radio">
-                        <label for="base-chocolate" class="radio-label block p-2 border-2 border-gray-200 rounded cursor-pointer text-center text-sm">
-                            Schoko (€4.00)
-                        </label>
-                    </div>
-                </div>
+                <label for="staffName" class="block text-sm font-medium text-pink-700 mb-1">Name</label>
+                <input type="text" id="staffName" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
             </div>
-            
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-bold mb-2">Belag (Hauptzutat):</label>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <input type="radio" id="topping-nutella" name="crepe-topping" value="nutella" class="hidden custom-radio" checked>
-                        <label for="topping-nutella" class="radio-label block p-2 border-2 border-gray-200 rounded cursor-pointer text-center text-sm">
-                            Nutella (€1.00)
-                        </label>
-                    </div>
-                    <div>
-                        <input type="radio" id="topping-cheese" name="crepe-topping" value="cheese" class="hidden custom-radio">
-                        <label for="topping-cheese" class="radio-label block p-2 border-2 border-gray-200 rounded cursor-pointer text-center text-sm">
-                            Käse (€1.20)
-                        </label>
-                    </div>
-                    <div>
-                        <input type="radio" id="topping-jam" name="crepe-topping" value="jam" class="hidden custom-radio">
-                        <label for="topping-jam" class="radio-label block p-2 border-2 border-gray-200 rounded cursor-pointer text-center text-sm">
-                            Marmelade (€0.80)
-                        </label>
-                    </div>
-                    <div>
-                        <input type="radio" id="topping-ham" name="crepe-topping" value="ham" class="hidden custom-radio">
-                        <label for="topping-ham" class="radio-label block p-2 border-2 border-gray-200 rounded cursor-pointer text-center text-sm">
-                            Schinken (€1.50)
-                        </label>
-                    </div>
-                </div>
+                <label for="staffEmail" class="block text-sm font-medium text-pink-700 mb-1">Email</label>
+                <input type="email" id="staffEmail" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
             </div>
-            
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-bold mb-2">Zusätzliche Zutaten:</label>
-                <div class="grid grid-cols-3 gap-2">
-                    <div>
-                        <input type="checkbox" id="extra-banana" class="hidden custom-checkbox">
-                        <label for="extra-banana" class="checkbox-label block p-2 border-2 border-gray-200 rounded cursor-pointer text-center text-xs">
-                            Banane (€1.00)
-                        </label>
-                    </div>
-                    <div>
-                        <input type="checkbox" id="extra-strawberry" class="hidden custom-checkbox">
-                        <label for="extra-strawberry" class="checkbox-label block p-2 border-2 border-gray-200 rounded cursor-pointer text-center text-xs">
-                            Erdbeer (€1.50)
-                        </label>
-                    </div>
-                    <div>
-                        <input type="checkbox" id="extra-spinach" class="hidden custom-checkbox">
-                        <label for="extra-spinach" class="checkbox-label block p-2 border-2 border-gray-200 rounded cursor-pointer text-center text-xs">
-                            Spinat (€1.00)
-                        </label>
-                    </div>
-                    <div>
-                        <input type="checkbox" id="extra-mushroom" class="hidden custom-checkbox">
-                        <label for="extra-mushroom" class="checkbox-label block p-2 border-2 border-gray-200 rounded cursor-pointer text-center text-xs">
-                            Pilze (€1.20)
-                        </label>
-                    </div>
-                    <div>
-                        <input type="checkbox" id="extra-whipped" class="hidden custom-checkbox">
-                        <label for="extra-whipped" class="checkbox-label block p-2 border-2 border-gray-200 rounded cursor-pointer text-center text-xs">
-                            Sahne (€1.00)
-                        </label>
-                    </div>
-                    <div>
-                        <input type="checkbox" id="extra-icecream" class="hidden custom-checkbox">
-                        <label for="extra-icecream" class="checkbox-label block p-2 border-2 border-gray-200 rounded cursor-pointer text-center text-xs">
-                            Eis (€1.50)
-                        </label>
-                    </div>
-                </div>
+                <label for="staffPassword" class="block text-sm font-medium text-pink-700 mb-1">Passwort</label>
+                <input type="password" id="staffPassword" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
             </div>
-            
-            <div class="flex justify-between items-center mt-6">
-                <div class="font-bold">Preis: €<span id="custom-crepe-price">4.50</span></div>
-                <button onclick="addCustomCrepeToOrder()" class="pink-gradient text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline hover:opacity-90 transition">
-                    Zur Bestellung hinzufügen
-                </button>
+            <div class="mb-4">
+                <label for="staffRole" class="block text-sm font-medium text-pink-700 mb-1">Rolle</label>
+                <select id="staffRole" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
+                    <option value="waiter">Kellner</option>
+                    <option value="maker">Maker</option>
+                </select>
             </div>
+            <button id="staffSubmitButton" onclick="addStaff()" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition">
+                Mitarbeiter hinzufügen
+            </button>
+            <div id="staffError" class="mt-3 text-sm text-red-600 hidden"></div>
         </div>
     </div>
 
-
-<!-- Notification -->
-<div id="notification" class="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg hidden z-50">
-  <div class="flex items-center">
-    <i class="fas fa-check-circle mr-2"></i>
-    <span id="notification-message">Erfolgreich!</span>
-  </div>
-</div>
-
-<script>
-  // === Firebase Konfiguration - ERSETZE hier mit deinen Firebase-Daten! ===
-  const firebaseConfig = {
-    apiKey: "DEIN_API_KEY",
-    authDomain: "DEIN_PROJECT.firebaseapp.com",
-    projectId: "DEIN_PROJECT_ID",
-    storageBucket: "DEIN_PROJECT.appspot.com",
-    messagingSenderId: "SENDER_ID",
-    appId: "APP_ID"
-  };
-
-  // Firebase initialisieren
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-
-  // Globale Variablen
-  let waiters = [];
-  let makers = [];
-  let owner = null;
-  let currentUser = null;
-  let orders = []; // Falls du auch Bestellungen in Firestore speichern willst, kannst du das hier erweitern
-
-  // Nutzer aus Firestore laden
-  async function loadUsers() {
-    waiters = [];
-    makers = [];
-    owner = null;
-    const snapshot = await db.collection('users').get();
-    snapshot.forEach(doc => {
-      const user = doc.data();
-      if (user.role === 'waiter') waiters.push(user);
-      else if (user.role === 'maker') makers.push(user);
-      else if (user.role === 'owner') owner = user;
-    });
-  }
-
-  // Login-Funktion (angepasst für Firebase)
-  async function login() {
-    const username = document.getElementById('login-username').value.trim();
-    const password = document.getElementById('login-password').value;
-    const role = document.getElementById('login-modal').getAttribute('data-role');
-
-    if (!username || !password) {
-      showNotification('Bitte Benutzername und Passwort eingeben!', 'error');
-      return;
-    }
-
-    await loadUsers();
-
-    if (role === 'owner') {
-      if (owner && owner.username === username && owner.password === password) {
-        currentUser = { role: 'owner', name: owner.name || 'Owner' };
-        postLogin();
-        return;
-      }
-    } else if (role === 'cashier') {
-      const waiter = waiters.find(w => w.username === username && w.password === password);
-      if (waiter) {
-        currentUser = { role: 'cashier', name: waiter.name, id: waiter.id };
-        postLogin();
-        return;
-      }
-    } else if (role === 'maker') {
-      const maker = makers.find(m => m.username === username && m.password === password);
-      if (maker) {
-        currentUser = { role: 'maker', name: maker.name, id: maker.id, station: maker.station };
-        document.getElementById(`station-${maker.station}`).checked = true;
-        postLogin();
-        return;
-      }
-    }
-
-    showNotification('Falscher Benutzername oder Passwort!', 'error');
-  }
-
-  // Nach erfolgreichem Login
-  function postLogin() {
-    hideLoginModal();
-    showNotification(`Erfolgreich eingeloggt als ${currentUser.name}`);
-
-    // Views verstecken und nur passende anzeigen
-    document.getElementById('customer-view').classList.add('hidden');
-    document.getElementById('owner-dashboard').classList.add('hidden');
-    document.getElementById('cashier-dashboard').classList.add('hidden');
-    document.getElementById('maker-dashboard').classList.add('hidden');
-
-    if (currentUser.role === 'owner') {
-      document.getElementById('owner-dashboard').classList.remove('hidden');
-      updateOwnerDashboard();
-      updateWaitersList();
-    } else if (currentUser.role === 'cashier') {
-      document.getElementById('cashier-dashboard').classList.remove('hidden');
-      updateCashierActiveOrders();
-    } else if (currentUser.role === 'maker') {
-      document.getElementById('maker-dashboard').classList.remove('hidden');
-      updateMakerDashboard();
-    }
-  }
-
-  // Kellner hinzufügen
-  async function addWaiter() {
-    const name = document.getElementById('waiter-name').value.trim();
-    const username = document.getElementById('waiter-username').value.trim();
-    const password = document.getElementById('waiter-password').value;
-
-    if (!name || !username || !password) {
-      showNotification('Bitte alle Felder ausfüllen!', 'error');
-      return;
-    }
-
-    await loadUsers();
-    if (waiters.some(w => w.username === username)) {
-      showNotification('Benutzername bereits vergeben!', 'error');
-      return;
-    }
-
-    try {
-      await db.collection('users').add({ name, username, password, role: 'waiter' });
-      showNotification('Kellner erfolgreich hinzugefügt!');
-      hideAddWaiterModal();
-      await loadUsers();
-      updateWaitersList();
-    } catch (e) {
-      showNotification('Fehler beim Hinzufügen des Kellners', 'error');
-      console.error(e);
-    }
-  }
-
-  // Kellner löschen
-  async function deleteWaiter(username) {
-    try {
-      const snapshot = await db.collection('users')
-        .where('role', '==', 'waiter')
-        .where('username', '==', username)
-        .get();
-
-      const batch = db.batch();
-      snapshot.forEach(doc => batch.delete(doc.ref));
-      await batch.commit();
-
-      showNotification('Kellner erfolgreich gelöscht!');
-      await loadUsers();
-      updateWaitersList();
-    } catch (e) {
-      showNotification('Fehler beim Löschen des Kellners', 'error');
-      console.error(e);
-    }
-  }
-
-  // Update Waiter List UI
-  function updateWaitersList() {
-    const waitersList = document.getElementById('waiters-list');
-    waitersList.innerHTML = '';
-
-    if (waiters.length === 0) {
-      waitersList.innerHTML = '<p class="text-gray-500 text-center py-4">Keine Kellner vorhanden</p>';
-      return;
-    }
-
-    waiters.forEach(waiter => {
-      const div = document.createElement('div');
-      div.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-lg';
-      div.innerHTML = `
-        <div>
-          <span class="font-medium">${waiter.name}</span>
-          <span class="text-sm text-gray-500 ml-2">(${waiter.username})</span>
+    <!-- Notification -->
+    <div id="notification" class="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden notification">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span id="notificationMessage">Erfolgreich!</span>
         </div>
-        <button onclick="deleteWaiter('${waiter.username}')" class="text-red-500 hover:text-red-700">
-          <i class="fas fa-trash-alt"></i>
-        </button>
-      `;
-      waitersList.appendChild(div);
-    });
-  }
+    </div>
 
-  // Beispiel Notification-Funktion
-  function showNotification(message, type = 'success') {
-    const notification = document.getElementById('notification');
-    notification.querySelector('#notification-message').textContent = message;
-    if (type === 'error') {
-      notification.classList.remove('bg-green-500');
-      notification.classList.add('bg-red-500');
-    } else {
-      notification.classList.remove('bg-red-500');
-      notification.classList.add('bg-green-500');
-    }
-    notification.classList.remove('hidden');
-    setTimeout(() => notification.classList.add('hidden'), 3000);
-  }
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  // Hier kannst du deine bisherigen Funktionen aus deinem Projekt einfügen:
-  // z.B. updateOwnerDashboard(), updateCashierActiveOrders(), updateMakerDashboard(), submitOrder(), etc.
-
-  // Beispiel: Login Modal show/hide Funktionen, etc.
-  function showLoginModal(role) {
-    document.getElementById('modal-title').textContent = `${role.charAt(0).toUpperCase() + role.slice(1)} Login`;
-    document.getElementById('login-modal').setAttribute('data-role', role);
-    document.getElementById('login-modal').classList.remove('hidden');
-  }
-  function hideLoginModal() {
-    document.getElementById('login-modal').classList.add('hidden');
-    document.getElementById('login-username').value = '';
-    document.getElementById('login-password').value = '';
-  }
-  // ... und so weiter ...
-// Global variables
+    <!-- Main Script -->
+    <script>
+        // Global variables
         let currentUser = null;
+        let currentUserRole = null;
         let currentOrder = [];
-        let orders = [];
-        let waiters = [
-            { id: 1, name: "Anna Müller", username: "anna", password: "anna123" },
-            { id: 2, name: "Tom Schneider", username: "tom", password: "tom123" }
-        ];
-        let makers = [
-            { id: 1, name: "Lisa Weber", username: "lisa", password: "lisa123", station: 1 },
-            { id: 2, name: "Max Bauer", username: "max", password: "max123", station: 2 },
-            { id: 3, name: "Julia Fischer", username: "julia", password: "julia123", station: 3 }
-        ];
-        let owner = { username: "admin", password: "admin123" };
-        let currentOrderNumber = 100;
-        let orderQueue = [];
+        let currentOrderTotal = 0;
+        let currentStation = 1;
+        let currentOrderId = null;
+        let revenueChart = null;
         
-        // Sample data for orders
-        function initializeSampleOrders() {
-            orders = [
-                { id: 101, items: [{name: "Nutella Crepe", price: 4.50}], status: "in-progress", station: 1, time: new Date(Date.now() - 120000), position: 1 },
-                { id: 102, items: [{name: "Schinken-Käse Crepe", price: 6.00}, {name: "Erdbeer Crepe", price: 5.00}], status: "waiting", station: 2, time: new Date(Date.now() - 60000), position: 2 },
-                { id: 103, items: [{name: "Banane Crepe", price: 4.80}, {name: "Eis", price: 1.50}], status: "waiting", station: 3, time: new Date(), position: 3 }
-            ];
+        // DOM Ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Menu toggle
+            document.getElementById('menuButton').addEventListener('click', function() {
+                document.getElementById('dropdownMenu').classList.toggle('hidden');
+            });
             
-            orderQueue = orders.filter(order => order.status === "waiting");
-        }
+            // Close menu when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!event.target.closest('#menuButton') && !event.target.closest('#dropdownMenu')) {
+                    document.getElementById('dropdownMenu').classList.add('hidden');
+                }
+            });
+            
+            // Initialize charts
+            initializeCharts();
+            
+            // Check if user is already logged in
+            checkAuthState();
+        });
         
         // Initialize charts
         function initializeCharts() {
-            // Revenue Chart
-            const revenueCtx = document.getElementById('revenue-chart').getContext('2d');
-            const revenueChart = new Chart(revenueCtx, {
-                type: 'line',
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            revenueChart = new Chart(ctx, {
+                type: 'bar',
                 data: {
-                    labels: ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
+                    labels: ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'],
                     datasets: [{
-                        label: 'Umsatz (€)',
-                        data: [320, 450, 380, 510, 620, 890, 750],
-                        backgroundColor: 'rgba(255, 107, 179, 0.2)',
-                        borderColor: 'rgba(255, 107, 179, 1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true
+                        label: 'Umsatz in €',
+                        data: [120, 190, 150, 200, 180, 250, 220],
+                        backgroundColor: 'rgba(246, 135, 179, 0.7)',
+                        borderColor: 'rgba(246, 135, 179, 1)',
+                        borderWidth: 1
                     }]
                 },
                 options: {
                     responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
                     scales: {
                         y: {
                             beginAtZero: true
@@ -792,666 +493,602 @@
                     }
                 }
             });
-            
-            // Popular Crepes Chart
-            const popularCtx = document.getElementById('popular-crepes').getContext('2d');
-            const popularChart = new Chart(popularCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Nutella', 'Erdbeer', 'Banane', 'Schinken-Käse', 'Spinaci', 'Andere'],
-                    datasets: [{
-                        data: [35, 25, 15, 12, 8, 5],
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.7)',
-                            'rgba(54, 162, 235, 0.7)',
-                            'rgba(255, 206, 86, 0.7)',
-                            'rgba(75, 192, 192, 0.7)',
-                            'rgba(153, 102, 255, 0.7)',
-                            'rgba(255, 159, 64, 0.7)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                        }
-                    }
+        }
+        
+        // Check auth state
+        function checkAuthState() {
+            firebase.auth().onAuthStateChanged(function(user) {
+                if (user) {
+                    currentUser = user;
+                    // Check user role
+                    checkUserRole(user.uid);
+                } else {
+                    // No user is signed in
+                    showCustomerSection();
                 }
             });
         }
         
-        // DOM Ready
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeSampleOrders();
-            initializeCharts();
-            updateOrderQueueDisplay();
-            updateWaitersList();
-            
-            // Menu button click handler
-            document.getElementById('menu-btn').addEventListener('click', function() {
-                document.getElementById('menu-dropdown').classList.toggle('hidden');
-            });
-            
-            // Close menu when clicking outside
-            document.addEventListener('click', function(event) {
-                if (!event.target.closest('#menu-btn') && !event.target.closest('#menu-dropdown')) {
-                    document.getElementById('menu-dropdown').classList.add('hidden');
+        // Check user role
+        function checkUserRole(uid) {
+            database.ref('users/' + uid).once('value').then(function(snapshot) {
+                const userData = snapshot.val();
+                if (userData) {
+                    currentUserRole = userData.role;
+                    
+                    // Show appropriate section based on role
+                    switch(currentUserRole) {
+                        case 'owner':
+                            showOwnerSection();
+                            loadOwnerData();
+                            break;
+                        case 'cashier':
+                            showCashierSection();
+                            break;
+                        case 'maker':
+                            showMakerSection();
+                            loadStationOrders(1);
+                            break;
+                        default:
+                            showCustomerSection();
+                    }
+                } else {
+                    // User data not found
+                    showCustomerSection();
                 }
             });
-            
-            // Update custom crepe price when options change
-            document.querySelectorAll('#custom-crepe-modal input').forEach(input => {
-                input.addEventListener('change', updateCustomCrepePrice);
-            });
-        });
+        }
         
         // Show login modal
         function showLoginModal(role) {
-            document.getElementById('modal-title').textContent = `${role.charAt(0).toUpperCase() + role.slice(1)} Login`;
-            document.getElementById('login-modal').setAttribute('data-role', role);
-            document.getElementById('login-modal').classList.remove('hidden');
+            document.getElementById('loginTitle').textContent = role === 'owner' ? 'Owner Login' : 
+                                                              role === 'cashier' ? 'Kassierer Login' : 'Maker Login';
+            document.getElementById('loginModal').setAttribute('data-role', role);
+            document.getElementById('loginModal').classList.remove('hidden');
         }
         
-        // Hide login modal
-        function hideLoginModal() {
-            document.getElementById('login-modal').classList.add('hidden');
-            document.getElementById('login-username').value = '';
-            document.getElementById('login-password').value = '';
+        // Hide modal
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
         }
         
         // Login function
         function login() {
-            const username = document.getElementById('login-username').value;
-            const password = document.getElementById('login-password').value;
-            const role = document.getElementById('login-modal').getAttribute('data-role');
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const role = document.getElementById('loginModal').getAttribute('data-role');
             
-            let authenticated = false;
-            
-            if (role === 'owner') {
-                if (username === owner.username && password === owner.password) {
-                    authenticated = true;
-                    currentUser = { role: 'owner', name: 'Owner' };
-                }
-            } else if (role === 'cashier') {
-                const waiter = waiters.find(w => w.username === username && w.password === password);
-                if (waiter) {
-                    authenticated = true;
-                    currentUser = { role: 'cashier', name: waiter.name, id: waiter.id };
-                }
-            } else if (role === 'maker') {
-                const maker = makers.find(m => m.username === username && m.password === password);
-                if (maker) {
-                    authenticated = true;
-                    currentUser = { role: 'maker', name: maker.name, id: maker.id, station: maker.station };
-                    // Automatically select the maker's station
-                    document.getElementById(`station-${maker.station}`).checked = true;
-                    updateMakerDashboard();
-                }
-            }
-            
-            if (authenticated) {
-                hideLoginModal();
-                showNotification('Erfolgreich eingeloggt!');
-                
-                // Hide all views first
-                document.getElementById('customer-view').classList.add('hidden');
-                document.getElementById('owner-dashboard').classList.add('hidden');
-                document.getElementById('cashier-dashboard').classList.add('hidden');
-                document.getElementById('maker-dashboard').classList.add('hidden');
-                
-                // Show the appropriate view
-                if (currentUser.role === 'owner') {
-                    document.getElementById('owner-dashboard').classList.remove('hidden');
-                    updateOwnerDashboard();
-                } else if (currentUser.role === 'cashier') {
-                    document.getElementById('cashier-dashboard').classList.remove('hidden');
-                    updateCashierActiveOrders();
-                } else if (currentUser.role === 'maker') {
-                    document.getElementById('maker-dashboard').classList.remove('hidden');
-                    updateMakerDashboard();
-                }
-            } else {
-                showNotification('Falscher Benutzername oder Passwort!', 'error');
-            }
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then(function(userCredential) {
+                    // Check if user has the correct role
+                    const uid = userCredential.user.uid;
+                    database.ref('users/' + uid).once('value').then(function(snapshot) {
+                        const userData = snapshot.val();
+                        if (userData && userData.role === role) {
+                            // Successful login
+                            hideModal('loginModal');
+                            showNotification('Erfolgreich eingeloggt!');
+                        } else {
+                            // Wrong role
+                            firebase.auth().signOut();
+                            document.getElementById('loginError').textContent = 'Zugriff verweigert: Falsche Rolle';
+                            document.getElementById('loginError').classList.remove('hidden');
+                        }
+                    });
+                })
+                .catch(function(error) {
+                    document.getElementById('loginError').textContent = error.message;
+                    document.getElementById('loginError').classList.remove('hidden');
+                });
         }
         
         // Logout function
         function logout() {
-            currentUser = null;
-            showNotification('Erfolgreich ausgeloggt!');
-            
-            // Hide all dashboards
-            document.getElementById('owner-dashboard').classList.add('hidden');
-            document.getElementById('cashier-dashboard').classList.add('hidden');
-            document.getElementById('maker-dashboard').classList.add('hidden');
-            
-            // Show customer view
-            document.getElementById('customer-view').classList.remove('hidden');
-        }
-        
-        // Show add waiter modal
-        function showAddWaiterModal() {
-            document.getElementById('add-waiter-modal').classList.remove('hidden');
-        }
-        
-        // Hide add waiter modal
-        function hideAddWaiterModal() {
-            document.getElementById('add-waiter-modal').classList.add('hidden');
-            document.getElementById('waiter-name').value = '';
-            document.getElementById('waiter-username').value = '';
-            document.getElementById('waiter-password').value = '';
-        }
-        
-        // Add new waiter
-        function addWaiter() {
-            const name = document.getElementById('waiter-name').value;
-            const username = document.getElementById('waiter-username').value;
-            const password = document.getElementById('waiter-password').value;
-            
-            if (!name || !username || !password) {
-                showNotification('Bitte alle Felder ausfüllen!', 'error');
-                return;
-            }
-            
-            // Check if username already exists
-            if (waiters.some(w => w.username === username)) {
-                showNotification('Benutzername bereits vergeben!', 'error');
-                return;
-            }
-            
-            const newId = waiters.length > 0 ? Math.max(...waiters.map(w => w.id)) + 1 : 1;
-            waiters.push({ id: newId, name, username, password });
-            
-            hideAddWaiterModal();
-            updateWaitersList();
-            showNotification('Kellner erfolgreich hinzugefügt!');
-        }
-        
-        // Delete waiter
-        function deleteWaiter(id) {
-            waiters = waiters.filter(w => w.id !== id);
-            updateWaitersList();
-            showNotification('Kellner erfolgreich gelöscht!');
-        }
-        
-        // Update waiters list in owner dashboard
-        function updateWaitersList() {
-            const waitersList = document.getElementById('waiters-list');
-            waitersList.innerHTML = '';
-            
-            if (waiters.length === 0) {
-                waitersList.innerHTML = '<p class="text-gray-500 text-center py-4">Keine Kellner vorhanden</p>';
-                return;
-            }
-            
-            waiters.forEach(waiter => {
-                const waiterElement = document.createElement('div');
-                waiterElement.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-lg';
-                waiterElement.innerHTML = `
-                    <div>
-                        <span class="font-medium">${waiter.name}</span>
-                        <span class="text-sm text-gray-500 ml-2">(${waiter.username})</span>
-                    </div>
-                    <button onclick="deleteWaiter(${waiter.id})" class="text-red-500 hover:text-red-700">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                `;
-                waitersList.appendChild(waiterElement);
+            firebase.auth().signOut().then(function() {
+                showCustomerSection();
+                showNotification('Erfolgreich ausgeloggt');
+            }).catch(function(error) {
+                showNotification('Fehler beim Ausloggen: ' + error.message, 'error');
             });
         }
         
-        // Show custom crepe modal
-        function showCustomCrepeModal() {
-            document.getElementById('custom-crepe-modal').classList.remove('hidden');
-            updateCustomCrepePrice();
+        // Show customer section
+        function showCustomerSection() {
+            hideAllSections();
+            document.getElementById('customerSection').classList.remove('hidden');
         }
         
-        // Hide custom crepe modal
-        function hideCustomCrepeModal() {
-            document.getElementById('custom-crepe-modal').classList.add('hidden');
+        // Show owner section
+        function showOwnerSection() {
+            hideAllSections();
+            document.getElementById('ownerSection').classList.remove('hidden');
         }
         
-        // Update custom crepe price based on selections
-        function updateCustomCrepePrice() {
-            let price = 0;
-            
-            // Base price
-            const base = document.querySelector('input[name="crepe-base"]:checked').value;
-            price += base === 'normal' ? 3.50 : 4.00;
-            
-            // Topping price
-            const topping = document.querySelector('input[name="crepe-topping"]:checked').value;
-            if (topping === 'nutella') price += 1.00;
-            else if (topping === 'cheese') price += 1.20;
-            else if (topping === 'jam') price += 0.80;
-            else if (topping === 'ham') price += 1.50;
-            
-            // Extras
-            if (document.getElementById('extra-banana').checked) price += 1.00;
-            if (document.getElementById('extra-strawberry').checked) price += 1.50;
-            if (document.getElementById('extra-spinach').checked) price += 1.00;
-            if (document.getElementById('extra-mushroom').checked) price += 1.20;
-            if (document.getElementById('extra-whipped').checked) price += 1.00;
-            if (document.getElementById('extra-icecream').checked) price += 1.50;
-            
-            document.getElementById('custom-crepe-price').textContent = price.toFixed(2);
+        // Show cashier section
+        function showCashierSection() {
+            hideAllSections();
+            document.getElementById('cashierSection').classList.remove('hidden');
+            resetOrder();
         }
         
-        // Add custom crepe to order
-        function addCustomCrepeToOrder() {
-            let name = "Custom Crepe (";
-            const base = document.querySelector('input[name="crepe-base"]:checked').value;
-            const topping = document.querySelector('input[name="crepe-topping"]:checked').value;
-            
-            name += base === 'normal' ? 'Normal' : 'Schoko';
-            name += ", ";
-            
-            if (topping === 'nutella') name += 'Nutella';
-            else if (topping === 'cheese') name += 'Käse';
-            else if (topping === 'jam') name += 'Marmelade';
-            else if (topping === 'ham') name += 'Schinken';
-            
-            // Add extras
-            const extras = [];
-            if (document.getElementById('extra-banana').checked) extras.push('Banane');
-            if (document.getElementById('extra-strawberry').checked) extras.push('Erdbeer');
-            if (document.getElementById('extra-spinach').checked) extras.push('Spinat');
-            if (document.getElementById('extra-mushroom').checked) extras.push('Pilze');
-            if (document.getElementById('extra-whipped').checked) extras.push('Sahne');
-            if (document.getElementById('extra-icecream').checked) extras.push('Eis');
-            
-            if (extras.length > 0) {
-                name += ", " + extras.join(", ");
-            }
-            
-            name += ")";
-            
-            const price = parseFloat(document.getElementById('custom-crepe-price').textContent);
-            
-            addToOrder(name, price);
-            hideCustomCrepeModal();
+        // Show maker section
+        function showMakerSection() {
+            hideAllSections();
+            document.getElementById('makerSection').classList.remove('hidden');
         }
         
-        // Add predefined crepe to order
-        function addPredefinedCrepe(name, price) {
-            addToOrder(name, price);
+        // Hide all sections
+        function hideAllSections() {
+            document.getElementById('customerSection').classList.add('hidden');
+            document.getElementById('ownerSection').classList.add('hidden');
+            document.getElementById('cashierSection').classList.add('hidden');
+            document.getElementById('makerSection').classList.add('hidden');
         }
         
-        // Add extra to order
-        function addExtra(name, price) {
-            addToOrder(`+ ${name}`, price);
-        }
-        
-        // Add item to current order
-        function addToOrder(name, price) {
-            currentOrder.push({ name, price });
-            updateCurrentOrderDisplay();
-        }
-        
-        // Remove item from current order
-        function removeFromOrder(index) {
-            currentOrder.splice(index, 1);
-            updateCurrentOrderDisplay();
-        }
-        
-        // Update current order display
-        function updateCurrentOrderDisplay() {
-            const orderItemsContainer = document.getElementById('current-order-items');
-            
-            if (currentOrder.length === 0) {
-                orderItemsContainer.innerHTML = '<p class="text-gray-500 text-center py-4">Fügen Sie Crepes hinzu</p>';
-                document.getElementById('subtotal').textContent = '0.00';
-                document.getElementById('tax').textContent = '0.00';
-                document.getElementById('total').textContent = '0.00';
-                document.getElementById('order-total').textContent = '0.00';
-                return;
-            }
-            
-            orderItemsContainer.innerHTML = '';
-            
-            let subtotal = 0;
-            
-            currentOrder.forEach((item, index) => {
-                subtotal += item.price;
+        // Load owner data
+        function loadOwnerData() {
+            // Load active orders
+            database.ref('orders').orderByChild('status').equalTo('pending').on('value', function(snapshot) {
+                const orders = snapshot.val() || {};
+                const activeOrdersContainer = document.getElementById('activeOrders');
+                activeOrdersContainer.innerHTML = '';
                 
-                const itemElement = document.createElement('div');
-                itemElement.className = 'flex justify-between items-center py-2 border-b';
-                itemElement.innerHTML = `
-                    <div class="flex-1 truncate">${item.name}</div>
-                    <div class="flex items-center">
-                        <span class="font-medium mr-4">€${item.price.toFixed(2)}</span>
-                        <button onclick="removeFromOrder(${index})" class="text-red-500 hover:text-red-700">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                `;
-                orderItemsContainer.appendChild(itemElement);
+                Object.keys(orders).forEach(function(orderId) {
+                    const order = orders[orderId];
+                    const orderCard = createOrderCard(orderId, order);
+                    activeOrdersContainer.appendChild(orderCard);
+                });
             });
             
-            const tax = subtotal * 0.07;
-            const total = subtotal + tax;
+            // Load staff list
+            database.ref('users').orderByChild('role').on('value', function(snapshot) {
+                const users = snapshot.val() || {};
+                const staffList = document.getElementById('staffList');
+                staffList.innerHTML = '';
+                
+                Object.keys(users).forEach(function(userId) {
+                    const user = users[userId];
+                    if (user.role === 'waiter' || user.role === 'maker') {
+                        const staffRow = document.createElement('tr');
+                        staffRow.className = 'hover:bg-pink-50';
+                        staffRow.innerHTML = `
+                            <td class="py-3 px-4">${user.name || 'N/A'}</td>
+                            <td class="py-3 px-4">${user.role === 'waiter' ? 'Kellner' : 'Maker'}</td>
+                            <td class="py-3 px-4">
+                                <button onclick="deleteStaff('${userId}')" class="text-red-600 hover:text-red-800">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </td>
+                        `;
+                        staffList.appendChild(staffRow);
+                    }
+                });
+            });
             
-            document.getElementById('subtotal').textContent = subtotal.toFixed(2);
-            document.getElementById('tax').textContent = tax.toFixed(2);
-            document.getElementById('total').textContent = total.toFixed(2);
-            document.getElementById('order-total').textContent = total.toFixed(2);
+            // Load statistics
+            database.ref('stats/totalOrders').once('value').then(function(snapshot) {
+                document.getElementById('totalOrders').textContent = snapshot.val() || 0;
+            });
         }
         
-        // Submit order
-        function submitOrder() {
-            if (currentOrder.length === 0) {
-                showNotification('Bestellung ist leer!', 'error');
-                return;
-            }
+        // Create order card
+        function createOrderCard(orderId, order) {
+            const card = document.createElement('div');
+            card.className = 'order-card bg-white rounded-lg border border-pink-200 p-4';
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="font-medium text-pink-800">Bestellung #${orderId.substring(0, 6)}</h4>
+                    <span class="text-xs bg-pink-100 text-pink-800 px-2 py-1 rounded">${order.station ? 'Station ' + order.station : ''}</span>
+                </div>
+                <div class="mb-2">
+                    <div class="text-sm text-pink-700">${order.items.map(item => item.name).join(', ')}</div>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-pink-700">€${order.total.toFixed(2)}</span>
+                    <span class="text-gray-500">${formatTime(order.timestamp)}</span>
+                </div>
+            `;
+            return card;
+        }
+        
+        // Format time
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+        
+        // Show order modal
+        function showOrderModal() {
+            document.getElementById('orderModal').classList.remove('hidden');
+        }
+        
+        // Submit owner order
+        function submitOwnerOrder() {
+            const crepeSelect = document.getElementById('orderCrepeSelect');
+            const selectedOption = crepeSelect.options[crepeSelect.selectedIndex];
+            const crepeName = selectedOption.text.split(' (')[0];
+            const crepePrice = parseFloat(selectedOption.text.match(/€(\d+\.\d+)/)[1]);
             
-            const newOrder = {
-                id: currentOrderNumber++,
-                items: [...currentOrder],
-                status: "waiting",
-                station: Math.floor(Math.random() * 3) + 1, // Random station for demo
-                time: new Date(),
-                position: orders.filter(o => o.status === "waiting").length + 1
+            const customerName = document.getElementById('orderCustomerName').value || 'Anonymous';
+            const station = document.querySelector('input[name="orderStation"]:checked').value;
+            
+            const order = {
+                items: [{ name: crepeName, price: crepePrice }],
+                total: crepePrice,
+                customerName: customerName,
+                station: station,
+                status: 'pending',
+                timestamp: Date.now()
             };
             
-            orders.push(newOrder);
-            orderQueue.push(newOrder);
-            currentOrder = [];
-            
-            updateCurrentOrderDisplay();
-            updateCashierActiveOrders();
-            updateOrderQueueDisplay();
-            
-            showNotification(`Bestellung #${newOrder.id} aufgegeben!`);
+            // Push to database
+            const newOrderRef = database.ref('orders').push();
+            newOrderRef.set(order)
+                .then(function() {
+                    hideModal('orderModal');
+                    showNotification('Bestellung erfolgreich aufgegeben');
+                    
+                    // Update stats
+                    database.ref('stats/totalOrders').transaction(function(current) {
+                        return (current || 0) + 1;
+                    });
+                })
+                .catch(function(error) {
+                    showNotification('Fehler: ' + error.message, 'error');
+                });
         }
         
-        // Update cashier's active orders display
-        function updateCashierActiveOrders() {
-            const activeOrdersContainer = document.getElementById('cashier-active-orders');
-            activeOrdersContainer.innerHTML = '';
+        // Show staff modal
+        function showStaffModal(type) {
+            document.getElementById('staffModalTitle').textContent = type === 'waiter' ? 'Kellner hinzufügen' : 'Maker hinzufügen';
+            document.getElementById('staffRole').value = type;
+            document.getElementById('staffModal').classList.remove('hidden');
+        }
+        
+        // Add staff
+        function addStaff() {
+            const name = document.getElementById('staffName').value;
+            const email = document.getElementById('staffEmail').value;
+            const password = document.getElementById('staffPassword').value;
+            const role = document.getElementById('staffRole').value;
             
-            const activeOrders = orders.filter(order => order.status !== "completed");
-            
-            if (activeOrders.length === 0) {
-                activeOrdersContainer.innerHTML = '<p class="text-gray-500 text-center py-4">Keine aktiven Bestellungen</p>';
+            if (!name || !email || !password) {
+                document.getElementById('staffError').textContent = 'Bitte alle Felder ausfüllen';
+                document.getElementById('staffError').classList.remove('hidden');
                 return;
             }
             
-            activeOrders.forEach(order => {
-                const orderElement = document.createElement('div');
-                orderElement.className = 'order-card bg-white p-4 rounded-lg shadow';
-                
-                let itemsHtml = '';
-                order.items.forEach(item => {
-                    itemsHtml += `<div class="flex justify-between py-1">
-                        <span>${item.name}</span>
-                        <span class="font-medium">€${item.price.toFixed(2)}</span>
-                    </div>`;
+            // Create user in Firebase Auth
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then(function(userCredential) {
+                    // Save additional user data
+                    const user = userCredential.user;
+                    return database.ref('users/' + user.uid).set({
+                        name: name,
+                        email: email,
+                        role: role
+                    });
+                })
+                .then(function() {
+                    hideModal('staffModal');
+                    showNotification('Mitarbeiter erfolgreich hinzugefügt');
+                    // Clear form
+                    document.getElementById('staffName').value = '';
+                    document.getElementById('staffEmail').value = '';
+                    document.getElementById('staffPassword').value = '';
+                })
+                .catch(function(error) {
+                    document.getElementById('staffError').textContent = error.message;
+                    document.getElementById('staffError').classList.remove('hidden');
                 });
-                
-                const total = order.items.reduce((sum, item) => sum + item.price, 0);
-                const statusClass = order.status === "in-progress" ? "bg-yellow-100 text-yellow-800" : "bg-blue-100 text-blue-800";
-                
-                orderElement.innerHTML = `
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="font-bold">Bestellung #${order.id}</span>
-                        <span class="text-xs px-2 py-1 rounded-full ${statusClass}">${order.status === "in-progress" ? "In Bearbeitung" : "Wartend"}</span>
-                    </div>
-                    <div class="mb-2">
-                        ${itemsHtml}
-                    </div>
-                    <div class="flex justify-between border-t pt-2">
-                        <span class="font-medium">Gesamt:</span>
-                        <span class="font-bold">€${total.toFixed(2)}</span>
-                    </div>
-                `;
-                
-                activeOrdersContainer.appendChild(orderElement);
-            });
         }
         
-        // Update maker dashboard with current order
-        function updateMakerDashboard() {
-            const station = document.querySelector('input[name="maker-station"]:checked').value;
-            const currentOrderContainer = document.getElementById('current-maker-order');
-            const completeBtn = document.getElementById('complete-order-btn');
-            const skipBtn = document.getElementById('skip-order-btn');
+        // Delete staff
+        function deleteStaff(userId) {
+            if (confirm('Mitarbeiter wirklich löschen?')) {
+                // Delete from database
+                database.ref('users/' + userId).remove()
+                    .then(function() {
+                        showNotification('Mitarbeiter gelöscht');
+                    })
+                    .catch(function(error) {
+                        showNotification('Fehler: ' + error.message, 'error');
+                    });
+            }
+        }
+        
+        // Cashier functions
+        function addToOrder(name, price) {
+            currentOrder.push({ name, price });
+            currentOrderTotal += price;
+            updateOrderDisplay();
+        }
+        
+        function createCustomCrepe() {
+            const baseSelect = document.getElementById('baseSelect');
+            const baseName = baseSelect.options[baseSelect.selectedIndex].text.split(' (')[0];
+            const basePrice = parseFloat(baseSelect.options[baseSelect.selectedIndex].text.match(/€(\d+\.\d+)/)[1]);
             
-            const order = orders.find(o => o.station === parseInt(station) && o.status === "in-progress");
+            // Get selected toppings
+            const toppings = [];
+            const toppingCheckboxes = document.querySelectorAll('#makerSection input[type="checkbox"]:checked');
+            toppingCheckboxes.forEach(function(checkbox) {
+                toppings.push(checkbox.value);
+            });
             
-            if (order) {
-                let itemsHtml = '';
-                order.items.forEach(item => {
-                    itemsHtml += `<div class="flex justify-between py-1">
-                        <span>${item.name}</span>
-                        <span class="font-medium">€${item.price.toFixed(2)}</span>
-                    </div>`;
-                });
-                
-                currentOrderContainer.innerHTML = `
-                    <div class="text-lg font-bold mb-2">Bestellung #${order.id}</div>
-                    <div class="mb-4">
-                        ${itemsHtml}
-                    </div>
-                    <div class="flex justify-between border-t pt-2 font-bold">
-                        <span>Gesamt:</span>
-                        <span>€${order.items.reduce((sum, item) => sum + item.price, 0).toFixed(2)}</span>
-                    </div>
-                `;
-                
-                completeBtn.classList.remove('hidden');
-                skipBtn.classList.remove('hidden');
+            const toppingPrice = toppings.length * 0.5;
+            const totalPrice = basePrice + toppingPrice;
+            
+            const crepeName = toppings.length > 0 ? 
+                `${baseName} mit ${toppings.join(', ')}` : 
+                baseName;
+            
+            currentOrder.push({ name: crepeName, price: totalPrice });
+            currentOrderTotal += totalPrice;
+            updateOrderDisplay();
+        }
+        
+        function updateOrderDisplay() {
+            const orderItemsContainer = document.getElementById('currentOrderItems');
+            const orderTotalElement = document.getElementById('orderTotal');
+            
+            if (currentOrder.length === 0) {
+                orderItemsContainer.innerHTML = '<div class="text-center text-pink-500 py-4">Noch keine Artikel hinzugefügt</div>';
             } else {
-                currentOrderContainer.innerHTML = 'Keine aktive Bestellung für diese Station';
-                completeBtn.classList.add('hidden');
-                skipBtn.classList.add('hidden');
-            }
-            
-            updateOrderQueueDisplay();
-        }
-        
-        // Update order queue display for maker
-        function updateOrderQueueDisplay() {
-            const queueContainer = document.getElementById('maker-order-queue');
-            queueContainer.innerHTML = '';
-            
-            if (orderQueue.length === 0) {
-                queueContainer.innerHTML = '<p class="text-gray-500 text-center py-4">Keine Bestellungen in der Warteschlange</p>';
-                return;
-            }
-            
-            orderQueue.forEach((order, index) => {
-                const orderElement = document.createElement('div');
-                orderElement.className = 'order-card bg-white p-4 rounded-lg shadow';
-                
-                let itemsHtml = '';
-                order.items.forEach(item => {
-                    itemsHtml += `<div class="flex justify-between py-1">
-                        <span class="text-sm">${item.name}</span>
-                        <span class="text-sm font-medium">€${item.price.toFixed(2)}</span>
-                    </div>`;
-                });
-                
-                orderElement.innerHTML = `
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="font-medium">#${order.id} (Station ${order.station})</span>
-                        <span class="text-xs bg-gray-100 px-2 py-1 rounded">Position ${index + 1}</span>
-                    </div>
-                    <div class="mb-2 text-sm">
-                        ${itemsHtml}
-                    </div>
-                    <button onclick="assignOrderToStation(${order.id})" class="w-full mt-2 pink-gradient text-white text-sm font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline hover:opacity-90 transition">
-                        Übernehmen
-                    </button>
-                `;
-                
-                queueContainer.appendChild(orderElement);
-            });
-        }
-        
-        // Assign order to station
-        function assignOrderToStation(orderId) {
-            const orderIndex = orders.findIndex(o => o.id === orderId);
-            if (orderIndex !== -1) {
-                orders[orderIndex].status = "in-progress";
-                orderQueue = orderQueue.filter(o => o.id !== orderId);
-                updateOrderQueueDisplay();
-                updateMakerDashboard();
-                showNotification(`Bestellung #${orderId} übernommen!`);
-            }
-        }
-        
-        // Mark order as done
-        function markOrderAsDone() {
-            const station = document.querySelector('input[name="maker-station"]:checked').value;
-            const orderIndex = orders.findIndex(o => o.station === parseInt(station) && o.status === "in-progress");
-            
-            if (orderIndex !== -1) {
-                orders[orderIndex].status = "completed";
-                showNotification(`Bestellung #${orders[orderIndex].id} abgeschlossen!`);
-                updateMakerDashboard();
-                updateCashierActiveOrders();
-            }
-        }
-        
-        // Skip current order
-        function skipOrder() {
-            const station = document.querySelector('input[name="maker-station"]:checked').value;
-            const orderIndex = orders.findIndex(o => o.station === parseInt(station) && o.status === "in-progress");
-            
-            if (orderIndex !== -1) {
-                orders[orderIndex].status = "waiting";
-                orderQueue.push(orders[orderIndex]);
-                showNotification(`Bestellung #${orders[orderIndex].id} übersprungen!`);
-                updateMakerDashboard();
-            }
-        }
-        
-        // Update owner dashboard
-        function updateOwnerDashboard() {
-            const activeOrders = orders.filter(order => order.status !== "completed");
-            document.getElementById('active-orders').textContent = activeOrders.length;
-            
-            // Update current orders list
-            const ordersList = document.getElementById('current-orders-list');
-            ordersList.innerHTML = '';
-            
-            if (activeOrders.length === 0) {
-                ordersList.innerHTML = '<p class="text-gray-500 text-center py-4">Keine aktiven Bestellungen</p>';
-                return;
-            }
-            
-            activeOrders.forEach(order => {
-                const orderElement = document.createElement('div');
-                orderElement.className = 'order-card bg-white p-4 rounded-lg shadow';
-                
-                let itemsHtml = '';
-                order.items.forEach(item => {
-                    itemsHtml += `<div class="flex justify-between py-1">
-                        <span>${item.name}</span>
-                        <span class="font-medium">€${item.price.toFixed(2)}</span>
-                    </div>`;
-                });
-                
-                const total = order.items.reduce((sum, item) => sum + item.price, 0);
-                const statusClass = order.status === "in-progress" ? "bg-yellow-100 text-yellow-800" : "bg-blue-100 text-blue-800";
-                
-                orderElement.innerHTML = `
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="font-bold">Bestellung #${order.id}</span>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-xs px-2 py-1 rounded-full ${statusClass}">${order.status === "in-progress" ? "In Bearbeitung" : "Wartend"}</span>
-                            <span class="text-xs px-2 py-1 rounded-full bg-gray-100">Station ${order.station}</span>
+                orderItemsContainer.innerHTML = '';
+                currentOrder.forEach(function(item, index) {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'flex justify-between items-center py-2 border-b border-pink-100';
+                    itemElement.innerHTML = `
+                        <div>
+                            <span class="text-pink-700">${item.name}</span>
                         </div>
-                    </div>
-                    <div class="mb-2">
-                        ${itemsHtml}
-                    </div>
-                    <div class="flex justify-between border-t pt-2">
-                        <span class="font-medium">Gesamt:</span>
-                        <span class="font-bold">€${total.toFixed(2)}</span>
-                    </div>
-                `;
+                        <div class="flex items-center">
+                            <span class="text-pink-700 mr-4">€${item.price.toFixed(2)}</span>
+                            <button onclick="removeOrderItem(${index})" class="text-red-500 hover:text-red-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                    orderItemsContainer.appendChild(itemElement);
+                });
+            }
+            
+            orderTotalElement.textContent = `€${currentOrderTotal.toFixed(2)}`;
+        }
+        
+        function removeOrderItem(index) {
+            currentOrderTotal -= currentOrder[index].price;
+            currentOrder.splice(index, 1);
+            updateOrderDisplay();
+        }
+        
+        function resetOrder() {
+            currentOrder = [];
+            currentOrderTotal = 0;
+            updateOrderDisplay();
+        }
+        
+        function submitOrder() {
+            if (currentOrder.length === 0) {
+                showNotification('Bitte fügen Sie Artikel hinzu', 'error');
+                return;
+            }
+            
+            const order = {
+                items: currentOrder,
+                total: currentOrderTotal,
+                status: 'pending',
+                timestamp: Date.now()
+            };
+            
+            // Generate a random order number
+            const orderNumber = 'C-' + Math.floor(10000 + Math.random() * 90000);
+            
+            // Push to database
+            database.ref('orders/' + orderNumber).set(order)
+                .then(function() {
+                    showNotification(`Bestellung #${orderNumber} erfolgreich aufgegeben`);
+                    resetOrder();
+                    
+                    // Update stats
+                    database.ref('stats/totalOrders').transaction(function(current) {
+                        return (current || 0) + 1;
+                    });
+                })
+                .catch(function(error) {
+                    showNotification('Fehler: ' + error.message, 'error');
+                });
+        }
+        
+        // Maker functions
+        function loadStationOrders(station) {
+            currentStation = station;
+            
+            database.ref('orders').orderByChild('status').equalTo('pending').on('value', function(snapshot) {
+                const orders = snapshot.val() || {};
+                const orderQueueContainer = document.getElementById('orderQueue');
+                orderQueueContainer.innerHTML = '';
                 
-                ordersList.appendChild(orderElement);
+                let hasCurrentOrder = false;
+                
+                Object.keys(orders).forEach(function(orderId) {
+                    const order = orders[orderId];
+                    
+                    // Check if order is assigned to this station
+                    if (order.station == station) {
+                        const orderElement = document.createElement('div');
+                        orderElement.className = 'order-card bg-white rounded-lg border border-pink-200 p-4';
+                        orderElement.innerHTML = `
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="font-medium text-pink-800">Bestellung #${orderId.substring(0, 6)}</h4>
+                            </div>
+                            <div class="mb-2">
+                                <div class="text-sm text-pink-700">${order.items.map(item => item.name).join(', ')}</div>
+                            </div>
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-pink-700">€${order.total.toFixed(2)}</span>
+                                <span class="text-gray-500">${formatTime(order.timestamp)}</span>
+                            </div>
+                        `;
+                        
+                        orderElement.addEventListener('click', function() {
+                            selectOrder(orderId, order);
+                        });
+                        
+                        orderQueueContainer.appendChild(orderElement);
+                    }
+                });
+                
+                if (!hasCurrentOrder) {
+                    document.getElementById('currentMakerOrder').innerHTML = '<div class="text-center text-pink-500 py-4">Keine aktive Bestellung</div>';
+                    document.getElementById('startOrderBtn').disabled = true;
+                    document.getElementById('completeOrderBtn').disabled = true;
+                    currentOrderId = null;
+                }
             });
         }
         
-        // Check order status for customer
+        function selectOrder(orderId, order) {
+            currentOrderId = orderId;
+            const currentOrderContainer = document.getElementById('currentMakerOrder');
+            
+            currentOrderContainer.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="font-medium text-pink-800">Bestellung #${orderId.substring(0, 6)}</h4>
+                </div>
+                <div class="mb-2">
+                    <div class="text-sm text-pink-700">${order.items.map(item => item.name).join(', ')}</div>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-pink-700">€${order.total.toFixed(2)}</span>
+                    <span class="text-gray-500">${formatTime(order.timestamp)}</span>
+                </div>
+            `;
+            
+            document.getElementById('startOrderBtn').disabled = false;
+            document.getElementById('completeOrderBtn').disabled = true;
+        }
+        
+        function startOrder() {
+            if (!currentOrderId) return;
+            
+            // Update order status to 'in-progress'
+            database.ref('orders/' + currentOrderId).update({
+                status: 'in-progress',
+                maker: currentUser.uid,
+                startTime: Date.now()
+            })
+            .then(function() {
+                document.getElementById('completeOrderBtn').disabled = false;
+                showNotification('Bestellung gestartet');
+            })
+            .catch(function(error) {
+                showNotification('Fehler: ' + error.message, 'error');
+            });
+        }
+        
+        function completeOrder() {
+            if (!currentOrderId) return;
+            
+            // Update order status to 'completed'
+            database.ref('orders/' + currentOrderId).update({
+                status: 'completed',
+                completeTime: Date.now()
+            })
+            .then(function() {
+                document.getElementById('currentMakerOrder').innerHTML = '<div class="text-center text-pink-500 py-4">Keine aktive Bestellung</div>';
+                document.getElementById('startOrderBtn').disabled = true;
+                document.getElementById('completeOrderBtn').disabled = true;
+                currentOrderId = null;
+                showNotification('Bestellung abgeschlossen');
+            })
+            .catch(function(error) {
+                showNotification('Fehler: ' + error.message, 'error');
+            });
+        }
+        
+        // Customer functions
         function checkOrderStatus() {
-            const orderNumber = document.getElementById('order-number').value;
+            const orderNumber = document.getElementById('orderNumber').value.trim();
             
             if (!orderNumber) {
-                showNotification('Bitte Bestellnummer eingeben!', 'error');
+                showNotification('Bitte Bestellnummer eingeben', 'error');
                 return;
             }
             
-            const order = orders.find(o => o.id === parseInt(orderNumber));
-            const statusContainer = document.getElementById('order-status');
-            
-            if (!order) {
-                statusContainer.classList.remove('hidden');
-                document.getElementById('order-position').textContent = 'Bestellung nicht gefunden';
-                document.getElementById('order-time').textContent = '';
-                document.getElementById('order-alert').classList.add('hidden');
-                return;
-            }
-            
-            statusContainer.classList.remove('hidden');
-            
-            if (order.status === "completed") {
-                document.getElementById('order-position').textContent = 'Ihre Bestellung ist fertig!';
-                document.getElementById('order-time').textContent = '';
-                document.getElementById('order-alert').classList.add('hidden');
-            } else {
-                const position = orders.filter(o => o.status === "waiting" && o.time < order.time).length;
-                const timeEstimate = position * 5; // 5 minutes per order
+            database.ref('orders/' + orderNumber).once('value').then(function(snapshot) {
+                const order = snapshot.val();
                 
-                document.getElementById('order-position').textContent = `Bestellungen vor Ihnen: ${position}`;
-                document.getElementById('order-time').textContent = `Geschätzte Wartezeit: ${timeEstimate} Minuten`;
-                
-                if (timeEstimate <= 5) {
-                    document.getElementById('order-alert').classList.remove('hidden');
-                } else {
-                    document.getElementById('order-alert').classList.add('hidden');
+                if (!order) {
+                    showNotification('Bestellung nicht gefunden', 'error');
+                    return;
                 }
-            }
+                
+                // Show order status
+                document.getElementById('orderStatus').classList.remove('hidden');
+                document.getElementById('orderNumberDisplay').textContent = orderNumber;
+                
+                // Calculate queue position and wait time
+                let queuePosition = 0;
+                let waitTime = 0;
+                
+                if (order.status === 'pending') {
+                    // Count pending orders before this one
+                    database.ref('orders').orderByChild('status').equalTo('pending').once('value').then(function(snap) {
+                        const pendingOrders = snap.val() || {};
+                        let count = 0;
+                        let found = false;
+                        
+                        Object.keys(pendingOrders).forEach(function(key) {
+                            if (key === orderNumber) {
+                                found = true;
+                            }
+                            if (!found) {
+                                count++;
+                            }
+                        });
+                        
+                        queuePosition = count;
+                        waitTime = queuePosition * 5; // 5 minutes per order
+                        
+                        document.getElementById('queuePosition').textContent = queuePosition;
+                        document.getElementById('waitTime').textContent = waitTime + ' Minuten';
+                        document.getElementById('progressBar').style.width = '0%';
+                        
+                        // If less than 5 minutes, show notification
+                        if (waitTime <= 5) {
+                            document.getElementById('readyNotification').classList.remove('hidden');
+                        } else {
+                            document.getElementById('readyNotification').classList.add('hidden');
+                        }
+                    });
+                } else if (order.status === 'in-progress') {
+                    document.getElementById('queuePosition').textContent = 'In Bearbeitung';
+                    document.getElementById('waitTime').textContent = 'Fast fertig!';
+                    document.getElementById('progressBar').style.width = '50%';
+                    document.getElementById('readyNotification').classList.add('hidden');
+                } else if (order.status === 'completed') {
+                    document.getElementById('queuePosition').textContent = 'Fertig';
+                    document.getElementById('waitTime').textContent = 'Bitte abholen';
+                    document.getElementById('progressBar').style.width = '100%';
+                    document.getElementById('readyNotification').classList.remove('hidden');
+                }
+            });
         }
         
         // Show notification
         function showNotification(message, type = 'success') {
             const notification = document.getElementById('notification');
-            notification.querySelector('#notification-message').textContent = message;
-            
-            // Set color based on type
-            if (type === 'error') {
-                notification.classList.remove('bg-green-500');
-                notification.classList.add('bg-red-500');
-            } else {
-                notification.classList.remove('bg-red-500');
-                notification.classList.add('bg-green-500');
-            }
-            
+            notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg notification ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`;
+            document.getElementById('notificationMessage').textContent = message;
             notification.classList.remove('hidden');
             
-            // Hide after 3 seconds
-            setTimeout(() => {
+            setTimeout(function() {
                 notification.classList.add('hidden');
             }, 3000);
         }
-        
-        // Event listener for maker station change
-        document.querySelectorAll('input[name="maker-station"]').forEach(input => {
-            input.addEventListener('change', updateMakerDashboard);
-        });
-  // Event Listener beim Laden
-  document.addEventListener('DOMContentLoaded', () => {
-    // Lade Nutzer und evtl. initialisiere weitere UI-Komponenten
-    loadUsers();
-  });
-</script>
-
+    </script>
 </body>
 </html>
