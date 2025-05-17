@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crepe Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #fff5f7;
+        }
+        
+        .pink-gradient {
+            background: linear-gradient(135deg, #f9c5d1 0%, #f7a8b8 100%);
+        }
+        
+        .menu-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .order-card {
+            transition: all 0.3s ease;
+        }
+        
+        .order-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        }
+        
+        .custom-radio input:checked + label {
+            background-color: #f687b3;
+            color: white;
+        }
+        
+        .progress-bar {
+            transition: width 0.5s ease;
+        }
+        
+        /* Animation for notification */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .notification {
+            animation: slideIn 0.5s forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Firebase Configuration -->
+    <script>
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCrxLW9hnG1V_7jFaSx0Sux9SLZei0AX1Q",
+            authDomain: "crepesmanagement.firebaseapp.com",
+            projectId: "crepesmanagement",
+            storageBucket: "crepesmanagement.firebasestorage.app",
+            messagingSenderId: "520970868529",
+            appId: "1:520970868529:web:f3da551aef4a97da884210"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+    </script>
+
+    <!-- Main Container -->
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header with Menu -->
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-pink-700">🍓 Crepe Delight</h1>
+            <div class="relative">
+                <button id="menuButton" class="p-2 rounded-full hover:bg-pink-200 transition">
+                    <i class="fas fa-ellipsis-v text-pink-700 text-xl"></i>
+                </button>
+                <div id="dropdownMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                    <div class="py-1">
+                        <button onclick="showLoginModal('owner')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-pink-100">Owner Login</button>
+                        <button onclick="showLoginModal('cashier')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-pink-100">Kassierer Login</button>
+                        <button onclick="showLoginModal('maker')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-pink-100">Maker Login</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Customer Section (Default View) -->
+        <section id="customerSection" class="mb-12">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden pink-gradient p-6">
+                <h2 class="text-2xl font-semibold text-white mb-6">Kundenbereich</h2>
+                <div class="bg-white rounded-lg p-6 shadow-inner">
+                    <div class="mb-6">
+                        <label for="orderNumber" class="block text-sm font-medium text-pink-700 mb-2">Ihre Bestellnummer:</label>
+                        <div class="flex">
+                            <input type="text" id="orderNumber" class="flex-1 px-4 py-2 border border-pink-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="z.B. C-12345">
+                            <button onclick="checkOrderStatus()" class="bg-pink-600 text-white px-4 py-2 rounded-r-lg hover:bg-pink-700 transition">Status prüfen</button>
+                        </div>
+                    </div>
+                    
+                    <div id="orderStatus" class="hidden bg-pink-50 border-l-4 border-pink-500 p-4 rounded-lg">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-medium text-pink-800">Bestellstatus</h3>
+                            <span id="orderNumberDisplay" class="bg-pink-200 text-pink-800 px-2 py-1 rounded text-sm"></span>
+                        </div>
+                        <div class="mb-4">
+                            <div class="flex justify-between text-sm text-pink-700 mb-1">
+                                <span>Position in der Warteschlange:</span>
+                                <span id="queuePosition">0</span>
+                            </div>
+                            <div class="w-full bg-pink-200 rounded-full h-2.5">
+                                <div id="progressBar" class="bg-pink-600 h-2.5 rounded-full progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between text-sm text-pink-700 mb-1">
+                            <span>Geschätzte Wartezeit:</span>
+                            <span id="waitTime">0 Minuten</span>
+                        </div>
+                        <div id="readyNotification" class="hidden mt-4 p-3 bg-green-100 border-l-4 border-green-500 text-green-700 rounded">
+                            <i class="fas fa-bell mr-2"></i> Ihre Bestellung ist fertig! Bitte kommen Sie zum Crepe-Stand.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Owner Section (Hidden by default) -->
+        <section id="ownerSection" class="hidden mb-12">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden pink-gradient p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-white">Owner Dashboard</h2>
+                    <button onclick="logout()" class="bg-white text-pink-700 px-4 py-2 rounded-lg hover:bg-pink-100 transition">Logout</button>
+                </div>
+                
+                <div class="bg-white rounded-lg p-6 shadow-inner">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                            <h3 class="font-medium text-pink-800 mb-2">Neue Bestellung</h3>
+                            <button onclick="showOrderModal()" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition">
+                                <i class="fas fa-plus mr-2"></i> Bestellung aufgeben
+                            </button>
+                        </div>
+                        <div class="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                            <h3 class="font-medium text-pink-800 mb-2">Mitarbeiter verwalten</h3>
+                            <button onclick="showStaffModal('waiter')" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition mb-2">
+                                <i class="fas fa-user-plus mr-2"></i> Kellner hinzufügen
+                            </button>
+                            <button onclick="showStaffModal('maker')" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition">
+                                <i class="fas fa-user-plus mr-2"></i> Maker hinzufügen
+                            </button>
+                        </div>
+                        <div class="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                            <h3 class="font-medium text-pink-800 mb-2">Statistiken</h3>
+                            <div class="text-center">
+                                <div class="text-3xl font-bold text-pink-700" id="totalOrders">0</div>
+                                <div class="text-sm text-pink-600">Bestellungen heute</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h3 class="font-medium text-pink-800 mb-4">Aktive Bestellungen</h3>
+                    <div id="activeOrders" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                        <!-- Orders will be loaded here -->
+                    </div>
+                    
+                    <h3 class="font-medium text-pink-800 mb-4">Umsatzstatistik</h3>
+                    <div class="bg-white p-4 rounded-lg border border-pink-200 mb-8">
+                        <canvas id="revenueChart" height="150"></canvas>
+                    </div>
+                    
+                    <h3 class="font-medium text-pink-800 mb-4">Mitarbeiterliste</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                            <thead class="bg-pink-100 text-pink-800">
+                                <tr>
+                                    <th class="py-3 px-4 text-left">Name</th>
+                                    <th class="py-3 px-4 text-left">Rolle</th>
+                                    <th class="py-3 px-4 text-left">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffList" class="divide-y divide-pink-200">
+                                <!-- Staff will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cashier Section (Hidden by default) -->
+        <section id="cashierSection" class="hidden mb-12">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden pink-gradient p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-white">Kassierer Dashboard</h2>
+                    <button onclick="logout()" class="bg-white text-pink-700 px-4 py-2 rounded-lg hover:bg-pink-100 transition">Logout</button>
+                </div>
+                
+                <div class="bg-white rounded-lg p-6 shadow-inner">
+                    <h3 class="font-medium text-pink-800 mb-4">Neue Bestellung</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div class="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                            <h4 class="font-medium text-pink-700 mb-3">Vordefinierte Crepes</h4>
+                            <div class="space-y-2">
+                                <button onclick="addToOrder('Classic', 4.50)" class="w-full text-left bg-white hover:bg-pink-100 px-3 py-2 rounded border border-pink-200 transition">
+                                    <span class="font-medium">Classic</span> - €4.50
+                                </button>
+                                <button onclick="addToOrder('Nutella', 5.00)" class="w-full text-left bg-white hover:bg-pink-100 px-3 py-2 rounded border border-pink-200 transition">
+                                    <span class="font-medium">Nutella</span> - €5.00
+                                </button>
+                                <button onclick="addToOrder('Berry', 5.50)" class="w-full text-left bg-white hover:bg-pink-100 px-3 py-2 rounded border border-pink-200 transition">
+                                    <span class="font-medium">Berry</span> - €5.50
+                                </button>
+                                <button onclick="addToOrder('Banana Split', 6.00)" class="w-full text-left bg-white hover:bg-pink-100 px-3 py-2 rounded border border-pink-200 transition">
+                                    <span class="font-medium">Banana Split</span> - €6.00
+                                </button>
+                            </div>
+                        </div>
+                        <div class="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                            <h4 class="font-medium text-pink-700 mb-3">Custom Crepe erstellen</h4>
+                            <div class="mb-3">
+                                <label class="block text-sm text-pink-700 mb-1">Basis:</label>
+                                <select id="baseSelect" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
+                                    <option value="Classic">Classic (€4.00)</option>
+                                    <option value="Whole Wheat">Whole Wheat (€4.50)</option>
+                                    <option value="Gluten Free">Gluten Free (€5.00)</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="block text-sm text-pink-700 mb-1">Toppings (€0.50 each):</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="form-checkbox text-pink-600" value="Nutella"> Nutella
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="form-checkbox text-pink-600" value="Strawberries"> Strawberries
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="form-checkbox text-pink-600" value="Bananas"> Bananas
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="form-checkbox text-pink-600" value="Whipped Cream"> Whipped Cream
+                                    </label>
+                                </div>
+                            </div>
+                            <button onclick="createCustomCrepe()" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition">
+                                <i class="fas fa-plus mr-2"></i> Zum Warenkorb hinzufügen
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <h3 class="font-medium text-pink-800 mb-3">Aktuelle Bestellung</h3>
+                    <div id="currentOrderItems" class="mb-4 border-b border-pink-200 pb-4">
+                        <!-- Order items will appear here -->
+                        <div class="text-center text-pink-500 py-4">Noch keine Artikel hinzugefügt</div>
+                    </div>
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="text-lg font-semibold text-pink-800">Gesamt:</div>
+                        <div id="orderTotal" class="text-xl font-bold text-pink-700">€0.00</div>
+                    </div>
+                    <button onclick="submitOrder()" class="w-full bg-pink-600 text-white py-3 rounded-lg hover:bg-pink-700 transition font-medium">
+                        <i class="fas fa-paper-plane mr-2"></i> Bestellung abschicken
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Maker Section (Hidden by default) -->
+        <section id="makerSection" class="hidden mb-12">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden pink-gradient p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-white">Maker Dashboard</h2>
+                    <button onclick="logout()" class="bg-white text-pink-700 px-4 py-2 rounded-lg hover:bg-pink-100 transition">Logout</button>
+                </div>
+                
+                <div class="bg-white rounded-lg p-6 shadow-inner">
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-pink-700 mb-2">Station auswählen:</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="custom-radio">
+                                <input type="radio" id="station1" name="station" value="1" class="hidden" checked onchange="loadStationOrders(1)">
+                                <label for="station1" class="block text-center py-2 px-4 border border-pink-300 rounded-lg cursor-pointer transition">Station 1</label>
+                            </div>
+                            <div class="custom-radio">
+                                <input type="radio" id="station2" name="station" value="2" class="hidden" onchange="loadStationOrders(2)">
+                                <label for="station2" class="block text-center py-2 px-4 border border-pink-300 rounded-lg cursor-pointer transition">Station 2</label>
+                            </div>
+                            <div class="custom-radio">
+                                <input type="radio" id="station3" name="station" value="3" class="hidden" onchange="loadStationOrders(3)">
+                                <label for="station3" class="block text-center py-2 px-4 border border-pink-300 rounded-lg cursor-pointer transition">Station 3</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h3 class="font-medium text-pink-800 mb-4">Aktuelle Bestellung</h3>
+                    <div id="currentMakerOrder" class="bg-pink-50 p-4 rounded-lg border border-pink-200 mb-6 min-h-32">
+                        <div class="text-center text-pink-500 py-4">Keine aktive Bestellung</div>
+                    </div>
+                    
+                    <div class="flex space-x-3">
+                        <button id="startOrderBtn" onclick="startOrder()" class="flex-1 bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition disabled:opacity-50" disabled>
+                            <i class="fas fa-play mr-2"></i> Starten
+                        </button>
+                        <button id="completeOrderBtn" onclick="completeOrder()" class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50" disabled>
+                            <i class="fas fa-check mr-2"></i> Fertigstellen
+                        </button>
+                    </div>
+                    
+                    <h3 class="font-medium text-pink-800 mt-8 mb-4">Warteschlange</h3>
+                    <div id="orderQueue" class="space-y-3">
+                        <!-- Orders will appear here -->
+                        <div class="text-center text-pink-500 py-4">Keine Bestellungen in der Warteschlange</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="loginTitle" class="text-xl font-semibold text-pink-700">Login</h3>
+                <button onclick="hideModal('loginModal')" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mb-4">
+                <label for="loginEmail" class="block text-sm font-medium text-pink-700 mb-1">Email</label>
+                <input type="email" id="loginEmail" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
+            </div>
+            <div class="mb-6">
+                <label for="loginPassword" class="block text-sm font-medium text-pink-700 mb-1">Passwort</label>
+                <input type="password" id="loginPassword" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
+            </div>
+            <button id="loginButton" onclick="login()" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition">
+                Einloggen
+            </button>
+            <div id="loginError" class="mt-3 text-sm text-red-600 hidden"></div>
+        </div>
+    </div>
+
+    <!-- Order Modal -->
+    <div id="orderModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-pink-700">Neue Bestellung</h3>
+                <button onclick="hideModal('orderModal')" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-pink-700 mb-1">Crepe auswählen</label>
+                <select id="orderCrepeSelect" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
+                    <option value="Classic">Classic (€4.50)</option>
+                    <option value="Nutella">Nutella (€5.00)</option>
+                    <option value="Berry">Berry (€5.50)</option>
+                    <option value="Banana Split">Banana Split (€6.00)</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label for="orderCustomerName" class="block text-sm font-medium text-pink-700 mb-1">Kundenname</label>
+                <input type="text" id="orderCustomerName" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500" placeholder="Optional">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-pink-700 mb-1">Station</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="custom-radio">
+                        <input type="radio" id="orderStation1" name="orderStation" value="1" class="hidden" checked>
+                        <label for="orderStation1" class="block text-center py-2 px-4 border border-pink-300 rounded-lg cursor-pointer transition">Station 1</label>
+                    </div>
+                    <div class="custom-radio">
+                        <input type="radio" id="orderStation2" name="orderStation" value="2" class="hidden">
+                        <label for="orderStation2" class="block text-center py-2 px-4 border border-pink-300 rounded-lg cursor-pointer transition">Station 2</label>
+                    </div>
+                    <div class="custom-radio">
+                        <input type="radio" id="orderStation3" name="orderStation" value="3" class="hidden">
+                        <label for="orderStation3" class="block text-center py-2 px-4 border border-pink-300 rounded-lg cursor-pointer transition">Station 3</label>
+                    </div>
+                </div>
+            </div>
+            <button onclick="submitOwnerOrder()" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition">
+                Bestellung aufgeben
+            </button>
+        </div>
+    </div>
+
+    <!-- Staff Modal -->
+    <div id="staffModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="staffModalTitle" class="text-xl font-semibold text-pink-700">Mitarbeiter hinzufügen</h3>
+                <button onclick="hideModal('staffModal')" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mb-4">
+                <label for="staffName" class="block text-sm font-medium text-pink-700 mb-1">Name</label>
+                <input type="text" id="staffName" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
+            </div>
+            <div class="mb-4">
+                <label for="staffEmail" class="block text-sm font-medium text-pink-700 mb-1">Email</label>
+                <input type="email" id="staffEmail" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
+            </div>
+            <div class="mb-4">
+                <label for="staffPassword" class="block text-sm font-medium text-pink-700 mb-1">Passwort</label>
+                <input type="password" id="staffPassword" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
+            </div>
+            <div class="mb-4">
+                <label for="staffRole" class="block text-sm font-medium text-pink-700 mb-1">Rolle</label>
+                <select id="staffRole" class="w-full px-3 py-2 border border-pink-300 rounded focus:outline-none focus:ring-1 focus:ring-pink-500">
+                    <option value="waiter">Kellner</option>
+                    <option value="maker">Maker</option>
+                </select>
+            </div>
+            <button id="staffSubmitButton" onclick="addStaff()" class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition">
+                Mitarbeiter hinzufügen
+            </button>
+            <div id="staffError" class="mt-3 text-sm text-red-600 hidden"></div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden notification">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span id="notificationMessage">Erfolgreich!</span>
+        </div>
+    </div>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Main Script -->
+    <script>
+        // Global variables
+        let currentUser = null;
+        let currentUserRole = null;
+        let currentOrder = [];
+        let currentOrderTotal = 0;
+        let currentStation = 1;
+        let currentOrderId = null;
+        let revenueChart = null;
+        
+        // DOM Ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Menu toggle
+            document.getElementById('menuButton').addEventListener('click', function() {
+                document.getElementById('dropdownMenu').classList.toggle('hidden');
+            });
+            
+            // Close menu when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!event.target.closest('#menuButton') && !event.target.closest('#dropdownMenu')) {
+                    document.getElementById('dropdownMenu').classList.add('hidden');
+                }
+            });
+            
+            // Initialize charts
+            initializeCharts();
+            
+            // Check if user is already logged in
+            checkAuthState();
+        });
+        
+        // Initialize charts
+        function initializeCharts() {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            revenueChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'],
+                    datasets: [{
+                        label: 'Umsatz in €',
+                        data: [120, 190, 150, 200, 180, 250, 220],
+                        backgroundColor: 'rgba(246, 135, 179, 0.7)',
+                        borderColor: 'rgba(246, 135, 179, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Check auth state
+        function checkAuthState() {
+            firebase.auth().onAuthStateChanged(function(user) {
+                if (user) {
+                    currentUser = user;
+                    // Check user role
+                    checkUserRole(user.uid);
+                } else {
+                    // No user is signed in
+                    showCustomerSection();
+                }
+            });
+        }
+        
+        // Check user role
+        function checkUserRole(uid) {
+            database.ref('users/' + uid).once('value').then(function(snapshot) {
+                const userData = snapshot.val();
+                if (userData) {
+                    currentUserRole = userData.role;
+                    
+                    // Show appropriate section based on role
+                    switch(currentUserRole) {
+                        case 'owner':
+                            showOwnerSection();
+                            loadOwnerData();
+                            break;
+                        case 'cashier':
+                            showCashierSection();
+                            break;
+                        case 'maker':
+                            showMakerSection();
+                            loadStationOrders(1);
+                            break;
+                        default:
+                            showCustomerSection();
+                    }
+                } else {
+                    // User data not found
+                    showCustomerSection();
+                }
+            });
+        }
+        
+        // Show login modal
+        function showLoginModal(role) {
+            document.getElementById('loginTitle').textContent = role === 'owner' ? 'Owner Login' : 
+                                                              role === 'cashier' ? 'Kassierer Login' : 'Maker Login';
+            document.getElementById('loginModal').setAttribute('data-role', role);
+            document.getElementById('loginModal').classList.remove('hidden');
+        }
+        
+        // Hide modal
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+        
+        // Login function
+        function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const role = document.getElementById('loginModal').getAttribute('data-role');
+            
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then(function(userCredential) {
+                    // Check if user has the correct role
+                    const uid = userCredential.user.uid;
+                    database.ref('users/' + uid).once('value').then(function(snapshot) {
+                        const userData = snapshot.val();
+                        if (userData && userData.role === role) {
+                            // Successful login
+                            hideModal('loginModal');
+                            showNotification('Erfolgreich eingeloggt!');
+                        } else {
+                            // Wrong role
+                            firebase.auth().signOut();
+                            document.getElementById('loginError').textContent = 'Zugriff verweigert: Falsche Rolle';
+                            document.getElementById('loginError').classList.remove('hidden');
+                        }
+                    });
+                })
+                .catch(function(error) {
+                    document.getElementById('loginError').textContent = error.message;
+                    document.getElementById('loginError').classList.remove('hidden');
+                });
+        }
+        
+        // Logout function
+        function logout() {
+            firebase.auth().signOut().then(function() {
+                showCustomerSection();
+                showNotification('Erfolgreich ausgeloggt');
+            }).catch(function(error) {
+                showNotification('Fehler beim Ausloggen: ' + error.message, 'error');
+            });
+        }
+        
+        // Show customer section
+        function showCustomerSection() {
+            hideAllSections();
+            document.getElementById('customerSection').classList.remove('hidden');
+        }
+        
+        // Show owner section
+        function showOwnerSection() {
+            hideAllSections();
+            document.getElementById('ownerSection').classList.remove('hidden');
+        }
+        
+        // Show cashier section
+        function showCashierSection() {
+            hideAllSections();
+            document.getElementById('cashierSection').classList.remove('hidden');
+            resetOrder();
+        }
+        
+        // Show maker section
+        function showMakerSection() {
+            hideAllSections();
+            document.getElementById('makerSection').classList.remove('hidden');
+        }
+        
+        // Hide all sections
+        function hideAllSections() {
+            document.getElementById('customerSection').classList.add('hidden');
+            document.getElementById('ownerSection').classList.add('hidden');
+            document.getElementById('cashierSection').classList.add('hidden');
+            document.getElementById('makerSection').classList.add('hidden');
+        }
+        
+        // Load owner data
+        function loadOwnerData() {
+            // Load active orders
+            database.ref('orders').orderByChild('status').equalTo('pending').on('value', function(snapshot) {
+                const orders = snapshot.val() || {};
+                const activeOrdersContainer = document.getElementById('activeOrders');
+                activeOrdersContainer.innerHTML = '';
+                
+                Object.keys(orders).forEach(function(orderId) {
+                    const order = orders[orderId];
+                    const orderCard = createOrderCard(orderId, order);
+                    activeOrdersContainer.appendChild(orderCard);
+                });
+            });
+            
+            // Load staff list
+            database.ref('users').orderByChild('role').on('value', function(snapshot) {
+                const users = snapshot.val() || {};
+                const staffList = document.getElementById('staffList');
+                staffList.innerHTML = '';
+                
+                Object.keys(users).forEach(function(userId) {
+                    const user = users[userId];
+                    if (user.role === 'waiter' || user.role === 'maker') {
+                        const staffRow = document.createElement('tr');
+                        staffRow.className = 'hover:bg-pink-50';
+                        staffRow.innerHTML = `
+                            <td class="py-3 px-4">${user.name || 'N/A'}</td>
+                            <td class="py-3 px-4">${user.role === 'waiter' ? 'Kellner' : 'Maker'}</td>
+                            <td class="py-3 px-4">
+                                <button onclick="deleteStaff('${userId}')" class="text-red-600 hover:text-red-800">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </td>
+                        `;
+                        staffList.appendChild(staffRow);
+                    }
+                });
+            });
+            
+            // Load statistics
+            database.ref('stats/totalOrders').once('value').then(function(snapshot) {
+                document.getElementById('totalOrders').textContent = snapshot.val() || 0;
+            });
+        }
+        
+        // Create order card
+        function createOrderCard(orderId, order) {
+            const card = document.createElement('div');
+            card.className = 'order-card bg-white rounded-lg border border-pink-200 p-4';
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="font-medium text-pink-800">Bestellung #${orderId.substring(0, 6)}</h4>
+                    <span class="text-xs bg-pink-100 text-pink-800 px-2 py-1 rounded">${order.station ? 'Station ' + order.station : ''}</span>
+                </div>
+                <div class="mb-2">
+                    <div class="text-sm text-pink-700">${order.items.map(item => item.name).join(', ')}</div>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-pink-700">€${order.total.toFixed(2)}</span>
+                    <span class="text-gray-500">${formatTime(order.timestamp)}</span>
+                </div>
+            `;
+            return card;
+        }
+        
+        // Format time
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+        
+        // Show order modal
+        function showOrderModal() {
+            document.getElementById('orderModal').classList.remove('hidden');
+        }
+        
+        // Submit owner order
+        function submitOwnerOrder() {
+            const crepeSelect = document.getElementById('orderCrepeSelect');
+            const selectedOption = crepeSelect.options[crepeSelect.selectedIndex];
+            const crepeName = selectedOption.text.split(' (')[0];
+            const crepePrice = parseFloat(selectedOption.text.match(/€(\d+\.\d+)/)[1]);
+            
+            const customerName = document.getElementById('orderCustomerName').value || 'Anonymous';
+            const station = document.querySelector('input[name="orderStation"]:checked').value;
+            
+            const order = {
+                items: [{ name: crepeName, price: crepePrice }],
+                total: crepePrice,
+                customerName: customerName,
+                station: station,
+                status: 'pending',
+                timestamp: Date.now()
+            };
+            
+            // Push to database
+            const newOrderRef = database.ref('orders').push();
+            newOrderRef.set(order)
+                .then(function() {
+                    hideModal('orderModal');
+                    showNotification('Bestellung erfolgreich aufgegeben');
+                    
+                    // Update stats
+                    database.ref('stats/totalOrders').transaction(function(current) {
+                        return (current || 0) + 1;
+                    });
+                })
+                .catch(function(error) {
+                    showNotification('Fehler: ' + error.message, 'error');
+                });
+        }
+        
+        // Show staff modal
+        function showStaffModal(type) {
+            document.getElementById('staffModalTitle').textContent = type === 'waiter' ? 'Kellner hinzufügen' : 'Maker hinzufügen';
+            document.getElementById('staffRole').value = type;
+            document.getElementById('staffModal').classList.remove('hidden');
+        }
+        
+        // Add staff
+        function addStaff() {
+            const name = document.getElementById('staffName').value;
+            const email = document.getElementById('staffEmail').value;
+            const password = document.getElementById('staffPassword').value;
+            const role = document.getElementById('staffRole').value;
+            
+            if (!name || !email || !password) {
+                document.getElementById('staffError').textContent = 'Bitte alle Felder ausfüllen';
+                document.getElementById('staffError').classList.remove('hidden');
+                return;
+            }
+            
+            // Create user in Firebase Auth
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then(function(userCredential) {
+                    // Save additional user data
+                    const user = userCredential.user;
+                    return database.ref('users/' + user.uid).set({
+                        name: name,
+                        email: email,
+                        role: role
+                    });
+                })
+                .then(function() {
+                    hideModal('staffModal');
+                    showNotification('Mitarbeiter erfolgreich hinzugefügt');
+                    // Clear form
+                    document.getElementById('staffName').value = '';
+                    document.getElementById('staffEmail').value = '';
+                    document.getElementById('staffPassword').value = '';
+                })
+                .catch(function(error) {
+                    document.getElementById('staffError').textContent = error.message;
+                    document.getElementById('staffError').classList.remove('hidden');
+                });
+        }
+        
+        // Delete staff
+        function deleteStaff(userId) {
+            if (confirm('Mitarbeiter wirklich löschen?')) {
+                // Delete from database
+                database.ref('users/' + userId).remove()
+                    .then(function() {
+                        showNotification('Mitarbeiter gelöscht');
+                    })
+                    .catch(function(error) {
+                        showNotification('Fehler: ' + error.message, 'error');
+                    });
+            }
+        }
+        
+        // Cashier functions
+        function addToOrder(name, price) {
+            currentOrder.push({ name, price });
+            currentOrderTotal += price;
+            updateOrderDisplay();
+        }
+        
+        function createCustomCrepe() {
+            const baseSelect = document.getElementById('baseSelect');
+            const baseName = baseSelect.options[baseSelect.selectedIndex].text.split(' (')[0];
+            const basePrice = parseFloat(baseSelect.options[baseSelect.selectedIndex].text.match(/€(\d+\.\d+)/)[1]);
+            
+            // Get selected toppings
+            const toppings = [];
+            const toppingCheckboxes = document.querySelectorAll('#makerSection input[type="checkbox"]:checked');
+            toppingCheckboxes.forEach(function(checkbox) {
+                toppings.push(checkbox.value);
+            });
+            
+            const toppingPrice = toppings.length * 0.5;
+            const totalPrice = basePrice + toppingPrice;
+            
+            const crepeName = toppings.length > 0 ? 
+                `${baseName} mit ${toppings.join(', ')}` : 
+                baseName;
+            
+            currentOrder.push({ name: crepeName, price: totalPrice });
+            currentOrderTotal += totalPrice;
+            updateOrderDisplay();
+        }
+        
+        function updateOrderDisplay() {
+            const orderItemsContainer = document.getElementById('currentOrderItems');
+            const orderTotalElement = document.getElementById('orderTotal');
+            
+            if (currentOrder.length === 0) {
+                orderItemsContainer.innerHTML = '<div class="text-center text-pink-500 py-4">Noch keine Artikel hinzugefügt</div>';
+            } else {
+                orderItemsContainer.innerHTML = '';
+                currentOrder.forEach(function(item, index) {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'flex justify-between items-center py-2 border-b border-pink-100';
+                    itemElement.innerHTML = `
+                        <div>
+                            <span class="text-pink-700">${item.name}</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="text-pink-700 mr-4">€${item.price.toFixed(2)}</span>
+                            <button onclick="removeOrderItem(${index})" class="text-red-500 hover:text-red-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                    orderItemsContainer.appendChild(itemElement);
+                });
+            }
+            
+            orderTotalElement.textContent = `€${currentOrderTotal.toFixed(2)}`;
+        }
+        
+        function removeOrderItem(index) {
+            currentOrderTotal -= currentOrder[index].price;
+            currentOrder.splice(index, 1);
+            updateOrderDisplay();
+        }
+        
+        function resetOrder() {
+            currentOrder = [];
+            currentOrderTotal = 0;
+            updateOrderDisplay();
+        }
+        
+        function submitOrder() {
+            if (currentOrder.length === 0) {
+                showNotification('Bitte fügen Sie Artikel hinzu', 'error');
+                return;
+            }
+            
+            const order = {
+                items: currentOrder,
+                total: currentOrderTotal,
+                status: 'pending',
+                timestamp: Date.now()
+            };
+            
+            // Generate a random order number
+            const orderNumber = 'C-' + Math.floor(10000 + Math.random() * 90000);
+            
+            // Push to database
+            database.ref('orders/' + orderNumber).set(order)
+                .then(function() {
+                    showNotification(`Bestellung #${orderNumber} erfolgreich aufgegeben`);
+                    resetOrder();
+                    
+                    // Update stats
+                    database.ref('stats/totalOrders').transaction(function(current) {
+                        return (current || 0) + 1;
+                    });
+                })
+                .catch(function(error) {
+                    showNotification('Fehler: ' + error.message, 'error');
+                });
+        }
+        
+        // Maker functions
+        function loadStationOrders(station) {
+            currentStation = station;
+            
+            database.ref('orders').orderByChild('status').equalTo('pending').on('value', function(snapshot) {
+                const orders = snapshot.val() || {};
+                const orderQueueContainer = document.getElementById('orderQueue');
+                orderQueueContainer.innerHTML = '';
+                
+                let hasCurrentOrder = false;
+                
+                Object.keys(orders).forEach(function(orderId) {
+                    const order = orders[orderId];
+                    
+                    // Check if order is assigned to this station
+                    if (order.station == station) {
+                        const orderElement = document.createElement('div');
+                        orderElement.className = 'order-card bg-white rounded-lg border border-pink-200 p-4';
+                        orderElement.innerHTML = `
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="font-medium text-pink-800">Bestellung #${orderId.substring(0, 6)}</h4>
+                            </div>
+                            <div class="mb-2">
+                                <div class="text-sm text-pink-700">${order.items.map(item => item.name).join(', ')}</div>
+                            </div>
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-pink-700">€${order.total.toFixed(2)}</span>
+                                <span class="text-gray-500">${formatTime(order.timestamp)}</span>
+                            </div>
+                        `;
+                        
+                        orderElement.addEventListener('click', function() {
+                            selectOrder(orderId, order);
+                        });
+                        
+                        orderQueueContainer.appendChild(orderElement);
+                    }
+                });
+                
+                if (!hasCurrentOrder) {
+                    document.getElementById('currentMakerOrder').innerHTML = '<div class="text-center text-pink-500 py-4">Keine aktive Bestellung</div>';
+                    document.getElementById('startOrderBtn').disabled = true;
+                    document.getElementById('completeOrderBtn').disabled = true;
+                    currentOrderId = null;
+                }
+            });
+        }
+        
+        function selectOrder(orderId, order) {
+            currentOrderId = orderId;
+            const currentOrderContainer = document.getElementById('currentMakerOrder');
+            
+            currentOrderContainer.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="font-medium text-pink-800">Bestellung #${orderId.substring(0, 6)}</h4>
+                </div>
+                <div class="mb-2">
+                    <div class="text-sm text-pink-700">${order.items.map(item => item.name).join(', ')}</div>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-pink-700">€${order.total.toFixed(2)}</span>
+                    <span class="text-gray-500">${formatTime(order.timestamp)}</span>
+                </div>
+            `;
+            
+            document.getElementById('startOrderBtn').disabled = false;
+            document.getElementById('completeOrderBtn').disabled = true;
+        }
+        
+        function startOrder() {
+            if (!currentOrderId) return;
+            
+            // Update order status to 'in-progress'
+            database.ref('orders/' + currentOrderId).update({
+                status: 'in-progress',
+                maker: currentUser.uid,
+                startTime: Date.now()
+            })
+            .then(function() {
+                document.getElementById('completeOrderBtn').disabled = false;
+                showNotification('Bestellung gestartet');
+            })
+            .catch(function(error) {
+                showNotification('Fehler: ' + error.message, 'error');
+            });
+        }
+        
+        function completeOrder() {
+            if (!currentOrderId) return;
+            
+            // Update order status to 'completed'
+            database.ref('orders/' + currentOrderId).update({
+                status: 'completed',
+                completeTime: Date.now()
+            })
+            .then(function() {
+                document.getElementById('currentMakerOrder').innerHTML = '<div class="text-center text-pink-500 py-4">Keine aktive Bestellung</div>';
+                document.getElementById('startOrderBtn').disabled = true;
+                document.getElementById('completeOrderBtn').disabled = true;
+                currentOrderId = null;
+                showNotification('Bestellung abgeschlossen');
+            })
+            .catch(function(error) {
+                showNotification('Fehler: ' + error.message, 'error');
+            });
+        }
+        
+        // Customer functions
+        function checkOrderStatus() {
+            const orderNumber = document.getElementById('orderNumber').value.trim();
+            
+            if (!orderNumber) {
+                showNotification('Bitte Bestellnummer eingeben', 'error');
+                return;
+            }
+            
+            database.ref('orders/' + orderNumber).once('value').then(function(snapshot) {
+                const order = snapshot.val();
+                
+                if (!order) {
+                    showNotification('Bestellung nicht gefunden', 'error');
+                    return;
+                }
+                
+                // Show order status
+                document.getElementById('orderStatus').classList.remove('hidden');
+                document.getElementById('orderNumberDisplay').textContent = orderNumber;
+                
+                // Calculate queue position and wait time
+                let queuePosition = 0;
+                let waitTime = 0;
+                
+                if (order.status === 'pending') {
+                    // Count pending orders before this one
+                    database.ref('orders').orderByChild('status').equalTo('pending').once('value').then(function(snap) {
+                        const pendingOrders = snap.val() || {};
+                        let count = 0;
+                        let found = false;
+                        
+                        Object.keys(pendingOrders).forEach(function(key) {
+                            if (key === orderNumber) {
+                                found = true;
+                            }
+                            if (!found) {
+                                count++;
+                            }
+                        });
+                        
+                        queuePosition = count;
+                        waitTime = queuePosition * 5; // 5 minutes per order
+                        
+                        document.getElementById('queuePosition').textContent = queuePosition;
+                        document.getElementById('waitTime').textContent = waitTime + ' Minuten';
+                        document.getElementById('progressBar').style.width = '0%';
+                        
+                        // If less than 5 minutes, show notification
+                        if (waitTime <= 5) {
+                            document.getElementById('readyNotification').classList.remove('hidden');
+                        } else {
+                            document.getElementById('readyNotification').classList.add('hidden');
+                        }
+                    });
+                } else if (order.status === 'in-progress') {
+                    document.getElementById('queuePosition').textContent = 'In Bearbeitung';
+                    document.getElementById('waitTime').textContent = 'Fast fertig!';
+                    document.getElementById('progressBar').style.width = '50%';
+                    document.getElementById('readyNotification').classList.add('hidden');
+                } else if (order.status === 'completed') {
+                    document.getElementById('queuePosition').textContent = 'Fertig';
+                    document.getElementById('waitTime').textContent = 'Bitte abholen';
+                    document.getElementById('progressBar').style.width = '100%';
+                    document.getElementById('readyNotification').classList.remove('hidden');
+                }
+            });
+        }
+        
+        // Show notification
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg notification ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`;
+            document.getElementById('notificationMessage').textContent = message;
+            notification.classList.remove('hidden');
+            
+            setTimeout(function() {
+                notification.classList.add('hidden');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
